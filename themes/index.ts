@@ -4,7 +4,7 @@ import * as cyberpunk from "./cyberpunk";
 import * as losAngeles from "./los-angeles";
 import * as western from "./western";
 
-export type ThemeName = "western" | "los-angeles" | "toy-carpet" | "cyberpunk";
+export type ThemeName = "western" | "los-angeles" | "cyberpunk";
 
 export interface Theme {
     name: ThemeName;

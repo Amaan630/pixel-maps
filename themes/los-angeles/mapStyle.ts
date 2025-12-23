@@ -12,7 +12,7 @@ export const mapStyle = {
       url: 'https://tiles.openfreemap.org/planet',
     },
   },
-  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+  glyphs: 'https://amaan630.github.io/pixel-maps-fonts/{fontstack}/{range}.pbf',
   layers: [
     // Background - near black
     {
@@ -217,7 +217,7 @@ export const mapStyle = {
       filter: ['==', '$type', 'Point'],
       layout: {
         'text-field': '{name}',
-        'text-font': ['Noto Sans Italic'],
+        'text-font': ['Pricedown Black'],
         'text-size': ['interpolate', ['exponential', 1.2], ['zoom'], 8, 10, 22, 36],
         'text-letter-spacing': 0.1,
       },
@@ -236,7 +236,7 @@ export const mapStyle = {
       filter: ['in', 'class', 'city', 'town'],
       layout: {
         'text-field': '{name}',
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Pricedown Black'],
         'text-transform': 'uppercase',
         'text-letter-spacing': 0.15,
         'text-size': ['interpolate', ['exponential', 1.2], ['zoom'], 6, 10, 14, 20, 22, 48],
@@ -257,7 +257,7 @@ export const mapStyle = {
       filter: ['==', 'class', 'village'],
       layout: {
         'text-field': '{name}',
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Pricedown Black'],
         'text-transform': 'uppercase',
         'text-letter-spacing': 0.1,
         'text-size': ['interpolate', ['exponential', 1.2], ['zoom'], 10, 8, 22, 24],
@@ -277,7 +277,7 @@ export const mapStyle = {
       filter: ['in', 'class', 'primary', 'secondary', 'tertiary', 'trunk', 'motorway'],
       layout: {
         'text-field': '{name}',
-        'text-font': ['Noto Sans Regular'],
+        'text-font': ['Pricedown Black'],
         'text-size': ['interpolate', ['linear'], ['zoom'], 10, 8, 18, 12],
         'symbol-placement': 'line',
         'text-rotation-alignment': 'map',
