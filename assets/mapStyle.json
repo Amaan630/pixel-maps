@@ -1,0 +1,256 @@
+{
+  "version": 8,
+  "name": "New Western",
+  "sources": {
+    "openmaptiles": {
+      "type": "vector",
+      "url": "https://tiles.openfreemap.org/planet"
+    }
+  },
+  "glyphs": "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+  "layers": [
+    {
+      "id": "Land",
+      "type": "background",
+      "paint": {
+        "background-color": "#dec29b"
+      }
+    },
+    {
+      "id": "Contour Fill",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landcover",
+      "paint": {
+        "fill-color": "#d4b78a",
+        "fill-opacity": 0.3
+      }
+    },
+    {
+      "id": "Water Fill",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "#9e9985"
+      }
+    },
+    {
+      "id": "Water Line",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "water",
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#40423d",
+        "line-width": ["interpolate", ["exponential", 1.3], ["zoom"], 15, 1, 22, 36],
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 12, 0, 12.5, 1]
+      }
+    },
+    {
+      "id": "Waterway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "waterway",
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-color": "#9e9985",
+        "line-width": ["interpolate", ["exponential", 1.3], ["zoom"], 10, 1, 22, 24]
+      }
+    },
+    {
+      "id": "Border Shadow",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "boundary",
+      "filter": ["==", ["get", "admin_level"], 2],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "hsla(84, 4%, 25%, 0.15)",
+        "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 6, 1, 22, 288],
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0, 3.5, 1]
+      }
+    },
+    {
+      "id": "Border",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "boundary",
+      "filter": ["==", ["get", "admin_level"], 2],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#40423d",
+        "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 6, 1, 22, 144],
+        "line-dasharray": [10, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75],
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0, 3.5, 1]
+      }
+    },
+    {
+      "id": "Path",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["==", ["get", "class"], "path"],
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-color": "#40423d",
+        "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 15, 1, 22, 24],
+        "line-dasharray": [3, 4],
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 14, 0, 14.5, 1]
+      }
+    },
+    {
+      "id": "Minor Road",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["in", ["get", "class"], ["literal", ["minor", "service", "street", "tertiary", "secondary"]]],
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-color": "#40423d",
+        "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 5, 0, 22, 48],
+        "line-opacity": ["interpolate", ["exponential", 1.5], ["zoom"], 11, 0, 16, 1]
+      }
+    },
+    {
+      "id": "Primary Road",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["==", ["get", "class"], "primary"],
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-color": "#40423d",
+        "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 5, 0, 22, 48],
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 7, 0, 7.5, 1]
+      }
+    },
+    {
+      "id": "Major Road",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["in", ["get", "class"], ["literal", ["motorway", "trunk"]]],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 13, 1, 22, 72],
+        "line-color": "#40423d",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0, 5.5, 1]
+      }
+    },
+    {
+      "id": "Railway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["==", ["get", "class"], "rail"],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#40423d",
+        "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 13, 1, 22, 72],
+        "line-dasharray": [10, 1],
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0, 11.5, 1]
+      }
+    },
+    {
+      "id": "Building Fill",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "building",
+      "paint": {
+        "fill-color": "#c8b28d",
+        "fill-opacity": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.5, 1]
+      }
+    },
+    {
+      "id": "Building Line",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "building",
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#40423d",
+        "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 15, 1, 22, 24],
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.5, 1]
+      }
+    },
+    {
+      "id": "Road Labels",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["exponential", 1.2], ["zoom"], 10, 10, 22, 36],
+        "symbol-placement": "line",
+        "text-max-angle": 30
+      },
+      "paint": {
+        "text-color": "#40423d",
+        "text-halo-color": "#dec29b",
+        "text-halo-width": 2
+      }
+    },
+    {
+      "id": "Place Labels",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "filter": ["in", ["get", "class"], ["literal", ["city", "town", "village"]]],
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-font": ["Noto Sans Bold"],
+        "text-transform": "uppercase",
+        "text-letter-spacing": 0.2,
+        "text-size": ["interpolate", ["exponential", 1.2], ["zoom"], 8, 10, 22, 72]
+      },
+      "paint": {
+        "text-color": "#40423d",
+        "text-halo-color": "#dec29b",
+        "text-halo-width": 2
+      }
+    },
+    {
+      "id": "Water Labels",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "water_name",
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-font": ["Noto Sans Italic"],
+        "text-size": ["interpolate", ["exponential", 1.2], ["zoom"], 8, 10, 22, 48],
+        "text-letter-spacing": 0.1
+      },
+      "paint": {
+        "text-color": "#40423d",
+        "text-halo-color": "#9e9985",
+        "text-halo-width": 1
+      }
+    }
+  ]
+}
