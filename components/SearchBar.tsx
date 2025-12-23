@@ -131,7 +131,7 @@ export function SearchBar({ onSelectLocation, onClear }: Props) {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 60,
+    top: 100,
     left: 16,
     right: 16,
     zIndex: 100,

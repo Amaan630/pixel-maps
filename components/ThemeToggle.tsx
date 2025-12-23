@@ -1,55 +1,154 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useState } from 'react';
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { ThemeName, themeNames, themes } from '../themes';
 
 export function ThemeToggle() {
   const { theme, themeName, setTheme } = useTheme();
-  const { colors } = theme;
+  const { fonts } = theme;
+  const [expanded, setExpanded] = useState(false);
 
-  // Cycle to next theme
-  const handlePress = () => {
-    const currentIndex = themeNames.indexOf(themeName);
-    const nextIndex = (currentIndex + 1) % themeNames.length;
-    setTheme(themeNames[nextIndex]);
+  const displayName = themes[themeName].displayName.toUpperCase();
+
+  const handleSelectTheme = (newTheme: ThemeName) => {
+    setTheme(newTheme);
+    setExpanded(false);
   };
 
-  // Get display name of current theme
-  const displayName = themes[themeName].displayName;
-
   return (
-    <TouchableOpacity
-      style={[
-        styles.container,
-        { backgroundColor: colors.parchment, borderColor: colors.charcoal },
-      ]}
-      onPress={handlePress}
-      activeOpacity={0.7}
-    >
-      <Text style={[styles.icon, { color: colors.charcoal }]}>🎨</Text>
-      <Text style={[styles.text, { color: colors.charcoal }]}>{displayName}</Text>
-    </TouchableOpacity>
+    <>
+      {/* Header bar with vignette */}
+      <View style={styles.headerContainer}>
+        <LinearGradient
+          colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.3)', 'transparent']}
+          style={styles.gradient}
+        />
+        <TouchableOpacity
+          style={styles.headerContent}
+          onPress={() => setExpanded(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.themeTitle, { fontFamily: fonts.display }]}>
+            {displayName}
+          </Text>
+          <Text style={styles.chevron}>▼</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Expanded overlay modal */}
+      <Modal
+        visible={expanded}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setExpanded(false)}
+      >
+        <Pressable style={styles.overlay} onPress={() => setExpanded(false)}>
+          <View style={styles.optionsContainer}>
+            {themeNames.map((themeKey) => {
+              const themeOption = themes[themeKey];
+              const isSelected = themeName === themeKey;
+              // Use each theme's own font for its option
+              const optionFont = themeOption.fonts.display;
+              return (
+                <TouchableOpacity
+                  key={themeKey}
+                  style={styles.optionRow}
+                  onPress={() => handleSelectTheme(themeKey)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      { fontFamily: optionFont },
+                      isSelected && styles.optionTextSelected,
+                    ]}
+                  >
+                    {themeOption.displayName.toUpperCase()}
+                  </Text>
+                  {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  headerContainer: {
     position: 'absolute',
-    top: 160,
-    right: 16,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 101,
+  },
+  gradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 2,
-    zIndex: 100,
+    justifyContent: 'flex-start',
+    paddingTop: 60,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
   },
-  icon: {
-    fontSize: 14,
-    marginRight: 6,
+  themeTitle: {
+    fontSize: 28,
+    color: '#FFFFFF',
+    letterSpacing: 2,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  text: {
-    fontSize: 12,
-    fontWeight: '600',
+  chevron: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    marginLeft: 12,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  optionsContainer: {
+    alignItems: 'center',
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+  },
+  optionText: {
+    fontSize: 32,
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 2,
+  },
+  optionTextSelected: {
+    color: '#FFFFFF',
+  },
+  checkmark: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    marginLeft: 16,
   },
 });

@@ -5,6 +5,7 @@ import { WebView } from 'react-native-webview';
 import { DirectionsPanel } from '../components/DirectionsPanel';
 import { ModeSelector } from '../components/ModeSelector';
 import { NavigationView } from '../components/NavigationView';
+import { RecenterButton } from '../components/RecenterButton';
 import { SearchBar } from '../components/SearchBar';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useTheme } from '../contexts/ThemeContext';
@@ -76,7 +77,8 @@ function getMapHTML(
       container: 'map',
       style: mapStyle,
       center: [${longitude}, ${latitude}],
-      zoom: 15
+      zoom: 15,
+      attributionControl: false
     });
 
     map.on('error', (e) => {
@@ -85,14 +87,14 @@ function getMapHTML(
     });
 
     // Add user location marker
-    const userMarker = document.createElement('div');
-    userMarker.className = 'user-location';
-    new maplibregl.Marker({ element: userMarker })
+    const userMarkerEl = document.createElement('div');
+    userMarkerEl.className = 'user-location';
+    const userMarker = new maplibregl.Marker({ element: userMarkerEl })
       .setLngLat([${longitude}, ${latitude}])
       .addTo(map);
 
-    // Add navigation controls
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    // Store current user location for recentering
+    let currentUserLocation = [${longitude}, ${latitude}];
 
     // Add route source and layers when map loads
     map.on('load', () => {
@@ -144,10 +146,15 @@ function getMapHTML(
         const data = JSON.parse(event.data);
 
         if (data.type === 'updateLocation') {
-          userMarker.setLngLat([data.longitude, data.latitude]);
+          currentUserLocation = [data.longitude, data.latitude];
+          userMarker.setLngLat(currentUserLocation);
           if (data.follow) {
-            map.flyTo({ center: [data.longitude, data.latitude] });
+            map.flyTo({ center: currentUserLocation });
           }
+        }
+
+        if (data.type === 'recenter') {
+          map.flyTo({ center: currentUserLocation, zoom: 16 });
         }
 
         if (data.type === 'setDestination') {
@@ -328,6 +335,11 @@ export default function MapScreen() {
     webViewRef.current?.postMessage(JSON.stringify({ type: 'clearRoute' }));
   };
 
+  // Recenter map on user location
+  const handleRecenter = () => {
+    webViewRef.current?.postMessage(JSON.stringify({ type: 'recenter' }));
+  };
+
   // Start active navigation
   const handleStartNavigation = useCallback(async () => {
     if (!route || route.steps.length === 0) return;
@@ -466,6 +478,9 @@ export default function MapScreen() {
       {!isNavigating && (
         <SearchBar onSelectLocation={handleSelectLocation} onClear={handleClearRoute} />
       )}
+
+      {/* Recenter button (hidden during navigation and when route panel is shown) */}
+      {!isNavigating && !route && <RecenterButton onPress={handleRecenter} />}
 
       {/* Mode selector (shown when destination is selected, not during navigation) */}
       {destination && !route && !isNavigating && (
