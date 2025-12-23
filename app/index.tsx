@@ -6,6 +6,8 @@ import { DirectionsPanel } from '../components/DirectionsPanel';
 import { ModeSelector } from '../components/ModeSelector';
 import { NavigationView } from '../components/NavigationView';
 import { SearchBar } from '../components/SearchBar';
+import { ThemeToggle } from '../components/ThemeToggle';
+import { useTheme } from '../contexts/ThemeContext';
 import { GeocodingResult } from '../services/geocoding';
 import { getRoute, RouteResponse, TravelMode } from '../services/routing';
 
@@ -28,7 +30,14 @@ function haversineDistance(
   return R * c;
 }
 
-const getMapHTML = (latitude: number, longitude: number) => `
+// Generate map HTML with theme colors
+function getMapHTML(
+  latitude: number,
+  longitude: number,
+  mapStyleJSON: string,
+  colors: { userLocation: string; route: string; charcoal: string }
+) {
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -42,7 +51,7 @@ const getMapHTML = (latitude: number, longitude: number) => `
     .user-location {
       width: 20px;
       height: 20px;
-      background: #4285f4;
+      background: ${colors.userLocation};
       border: 3px solid white;
       border-radius: 50%;
       box-shadow: 0 0 10px rgba(66, 133, 244, 0.5);
@@ -50,8 +59,8 @@ const getMapHTML = (latitude: number, longitude: number) => `
     .destination-marker {
       width: 32px;
       height: 32px;
-      background: #ee0400;
-      border: 3px solid #40423d;
+      background: ${colors.route};
+      border: 3px solid ${colors.charcoal};
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
@@ -61,312 +70,11 @@ const getMapHTML = (latitude: number, longitude: number) => `
 <body>
   <div id="map"></div>
   <script>
-    const newWesternStyle = {
-      version: 8,
-      name: "New Western",
-      sources: {
-        openmaptiles: {
-          type: "vector",
-          url: "https://tiles.openfreemap.org/planet"
-        }
-      },
-      glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
-      layers: [
-        // Land - parchment tan background
-        {
-          id: "background",
-          type: "background",
-          paint: { "background-color": "#dec29b" }
-        },
-        // Water fill
-        {
-          id: "water",
-          type: "fill",
-          source: "openmaptiles",
-          "source-layer": "water",
-          paint: {
-            "fill-color": "#9e9985",
-            "fill-outline-color": "hsla(0, 0%, 0%, 0)"
-          }
-        },
-        // Water line (outline)
-        {
-          id: "water-line",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "water",
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.3], ["zoom"], 15, 1, 22, 36],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 12, 0, 12.5, 1]
-          }
-        },
-        // Landuse - parks, forests
-        {
-          id: "landuse-park",
-          type: "fill",
-          source: "openmaptiles",
-          "source-layer": "landuse",
-          filter: ["in", "class", "park", "grass", "cemetery"],
-          paint: { "fill-color": "#d4b78a" }
-        },
-        {
-          id: "landuse-forest",
-          type: "fill",
-          source: "openmaptiles",
-          "source-layer": "landcover",
-          filter: ["==", "class", "wood"],
-          paint: { "fill-color": "#d4b78a", "fill-opacity": 0.6 }
-        },
-        // Buildings fill
-        {
-          id: "building-fill",
-          type: "fill",
-          source: "openmaptiles",
-          "source-layer": "building",
-          paint: {
-            "fill-color": "#c8b28d",
-            "fill-opacity": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.5, 1]
-          }
-        },
-        // Buildings outline
-        {
-          id: "building-line",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "building",
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 15, 0.5, 22, 12],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.5, 1]
-          }
-        },
-        // Border shadow
-        {
-          id: "border-shadow",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "boundary",
-          filter: ["==", "admin_level", 2],
-          paint: {
-            "line-color": "hsla(84, 4%, 25%, 0.15)",
-            "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 6, 1, 22, 288],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0, 3.5, 1]
-          }
-        },
-        // Border
-        {
-          id: "border",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "boundary",
-          filter: ["==", "admin_level", 2],
-          layout: { "line-join": "round" },
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 6, 0.5, 22, 72],
-            "line-dasharray": [10, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0, 3.5, 1]
-          }
-        },
-        // Paths
-        {
-          id: "paths",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "transportation",
-          filter: ["==", "class", "path"],
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 15, 0.5, 22, 12],
-            "line-dasharray": [3, 4],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 14, 0, 14.5, 1]
-          }
-        },
-        // Minor roads
-        {
-          id: "road-minor",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "transportation",
-          filter: ["in", "class", "minor", "service", "track"],
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 14, 0.5, 22, 24],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, 1]
-          }
-        },
-        // Tertiary roads
-        {
-          id: "road-tertiary",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "transportation",
-          filter: ["==", "class", "tertiary"],
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 10, 0, 22, 36],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0, 12, 1]
-          }
-        },
-        // Secondary roads
-        {
-          id: "road-secondary",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "transportation",
-          filter: ["==", "class", "secondary"],
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 8, 0, 22, 42],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 9, 0, 10, 1]
-          }
-        },
-        // Primary roads
-        {
-          id: "road-primary",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "transportation",
-          filter: ["==", "class", "primary"],
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 6, 0, 22, 48],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 7, 0, 7.5, 1]
-          }
-        },
-        // Trunk roads
-        {
-          id: "road-trunk",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "transportation",
-          filter: ["==", "class", "trunk"],
-          layout: { "line-join": "round" },
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 5, 0.5, 22, 60],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0, 5.5, 1]
-          }
-        },
-        // Motorways
-        {
-          id: "road-motorway",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "transportation",
-          filter: ["==", "class", "motorway"],
-          layout: { "line-join": "round" },
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 4, 0.5, 22, 72],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0, 5, 1]
-          }
-        },
-        // Railway
-        {
-          id: "railway",
-          type: "line",
-          source: "openmaptiles",
-          "source-layer": "transportation",
-          filter: ["==", "class", "rail"],
-          paint: {
-            "line-color": "hsl(84, 4%, 25%)",
-            "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 13, 1, 22, 36],
-            "line-dasharray": [10, 1],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0, 11.5, 1]
-          }
-        },
-        // Water labels
-        {
-          id: "water-label",
-          type: "symbol",
-          source: "openmaptiles",
-          "source-layer": "water_name",
-          filter: ["==", "$type", "Point"],
-          layout: {
-            "text-field": "{name}",
-            "text-font": ["Noto Sans Italic"],
-            "text-size": ["interpolate", ["exponential", 1.2], ["zoom"], 8, 10, 22, 48],
-            "text-letter-spacing": 0.1
-          },
-          paint: {
-            "text-color": "#40423d",
-            "text-halo-color": "#9e9985",
-            "text-halo-width": 1
-          }
-        },
-        // Place labels - cities/towns
-        {
-          id: "place-city",
-          type: "symbol",
-          source: "openmaptiles",
-          "source-layer": "place",
-          filter: ["in", "class", "city", "town"],
-          layout: {
-            "text-field": "{name}",
-            "text-font": ["Noto Sans Bold"],
-            "text-transform": "uppercase",
-            "text-letter-spacing": 0.2,
-            "text-size": ["interpolate", ["exponential", 1.2], ["zoom"], 6, 10, 14, 24, 22, 72]
-          },
-          paint: {
-            "text-color": "hsla(84, 4%, 25%, 0.9)",
-            "text-halo-color": "#dec29b",
-            "text-halo-width": 2
-          }
-        },
-        // Place labels - villages
-        {
-          id: "place-village",
-          type: "symbol",
-          source: "openmaptiles",
-          "source-layer": "place",
-          filter: ["==", "class", "village"],
-          layout: {
-            "text-field": "{name}",
-            "text-font": ["Noto Sans Bold"],
-            "text-transform": "uppercase",
-            "text-letter-spacing": 0.15,
-            "text-size": ["interpolate", ["exponential", 1.2], ["zoom"], 10, 8, 22, 36]
-          },
-          paint: {
-            "text-color": "hsla(84, 4%, 25%, 0.9)",
-            "text-halo-color": "#dec29b",
-            "text-halo-width": 1.5
-          }
-        },
-        // Road labels
-        {
-          id: "road-label",
-          type: "symbol",
-          source: "openmaptiles",
-          "source-layer": "transportation_name",
-          filter: ["in", "class", "primary", "secondary", "tertiary", "trunk", "motorway"],
-          layout: {
-            "text-field": "{name}",
-            "text-font": ["Noto Sans Regular"],
-            "text-size": ["interpolate", ["linear"], ["zoom"], 10, 8, 18, 14],
-            "symbol-placement": "line",
-            "text-rotation-alignment": "map"
-          },
-          paint: {
-            "text-color": "#40423d",
-            "text-halo-color": "#dec29b",
-            "text-halo-width": 2
-          }
-        }
-      ]
-    };
+    const mapStyle = ${mapStyleJSON};
 
     const map = new maplibregl.Map({
       container: 'map',
-      style: newWesternStyle,
+      style: mapStyle,
       center: [${longitude}, ${latitude}],
       zoom: 15
     });
@@ -404,7 +112,7 @@ const getMapHTML = (latitude: number, longitude: number) => `
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#40423d',
+          'line-color': '${colors.charcoal}',
           'line-width': 10,
           'line-opacity': 0.6
         }
@@ -420,7 +128,7 @@ const getMapHTML = (latitude: number, longitude: number) => `
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#ee0400',
+          'line-color': '${colors.route}',
           'line-width': 6,
           'line-opacity': 0.9
         }
@@ -495,8 +203,12 @@ const getMapHTML = (latitude: number, longitude: number) => `
 </body>
 </html>
 `;
+}
 
 export default function MapScreen() {
+  const { theme, themeName } = useTheme();
+  const { colors } = theme;
+
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -708,29 +420,35 @@ export default function MapScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#40423d" />
-        <Text style={styles.loadingText}>Getting your location...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.parchment }]}>
+        <ActivityIndicator size="large" color={colors.charcoal} />
+        <Text style={[styles.loadingText, { color: colors.charcoal }]}>
+          Getting your location...
+        </Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
+      <View style={[styles.centered, { backgroundColor: colors.parchment }]}>
+        <Text style={[styles.errorText, { color: colors.charcoal }]}>{error}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      {/* WebView with key to force reload on theme change */}
       <WebView
+        key={themeName}
         ref={webViewRef}
         source={{
           html: getMapHTML(
             initialLocation.current?.lat ?? 37.78825,
-            initialLocation.current?.lng ?? -122.4324
+            initialLocation.current?.lng ?? -122.4324,
+            theme.mapStyleJSON,
+            colors
           ),
         }}
         style={styles.map}
@@ -740,6 +458,9 @@ export default function MapScreen() {
         domStorageEnabled={true}
         originWhitelist={['*']}
       />
+
+      {/* Theme toggle (always visible, top-right below nav controls) */}
+      {!isNavigating && <ThemeToggle />}
 
       {/* Search bar overlay (hidden during active navigation) */}
       {!isNavigating && (
@@ -779,10 +500,17 @@ export default function MapScreen() {
 
       {/* Loading overlay */}
       {routeLoading && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color="#40423d" />
-            <Text style={styles.loadingRouteText}>Calculating route...</Text>
+        <View style={[styles.loadingOverlay, { backgroundColor: `${colors.parchment}cc` }]}>
+          <View
+            style={[
+              styles.loadingBox,
+              { backgroundColor: colors.parchment, borderColor: colors.charcoal },
+            ]}
+          >
+            <ActivityIndicator size="large" color={colors.charcoal} />
+            <Text style={[styles.loadingRouteText, { color: colors.charcoal }]}>
+              Calculating route...
+            </Text>
           </View>
         </View>
       )}
@@ -801,30 +529,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#dec29b',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#40423d',
   },
   errorText: {
     fontSize: 18,
-    color: '#40423d',
     textAlign: 'center',
     padding: 20,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(222, 194, 155, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 200,
   },
   loadingBox: {
-    backgroundColor: '#dec29b',
     borderWidth: 2,
-    borderColor: '#40423d',
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
@@ -832,7 +554,6 @@ const styles = StyleSheet.create({
   loadingRouteText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#40423d',
     fontWeight: '600',
   },
 });

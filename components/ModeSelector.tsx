@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { TravelMode } from '../services/routing';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Props {
   mode: TravelMode;
@@ -7,23 +8,46 @@ interface Props {
 }
 
 export function ModeSelector({ mode, onModeChange }: Props) {
+  const { theme } = useTheme();
+  const { colors, fonts } = theme;
+
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.button, mode === 'walking' && styles.active]}
+        style={[
+          styles.button,
+          { backgroundColor: colors.parchment, borderColor: colors.charcoal },
+          mode === 'walking' && { backgroundColor: colors.charcoal },
+        ]}
         onPress={() => onModeChange('walking')}
         activeOpacity={0.7}
       >
-        <Text style={[styles.text, mode === 'walking' && styles.activeText]}>
+        <Text
+          style={[
+            styles.text,
+            { color: colors.charcoal, fontFamily: fonts.display },
+            mode === 'walking' && { color: colors.parchment },
+          ]}
+        >
           Walking
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.button, mode === 'driving' && styles.active]}
+        style={[
+          styles.button,
+          { backgroundColor: colors.parchment, borderColor: colors.charcoal },
+          mode === 'driving' && { backgroundColor: colors.charcoal },
+        ]}
         onPress={() => onModeChange('driving')}
         activeOpacity={0.7}
       >
-        <Text style={[styles.text, mode === 'driving' && styles.activeText]}>
+        <Text
+          style={[
+            styles.text,
+            { color: colors.charcoal, fontFamily: fonts.display },
+            mode === 'driving' && { color: colors.parchment },
+          ]}
+        >
           Driving
         </Text>
       </TouchableOpacity>
@@ -40,23 +64,13 @@ const styles = StyleSheet.create({
     zIndex: 99,
   },
   button: {
-    backgroundColor: '#dec29b',
     borderWidth: 2,
-    borderColor: '#40423d',
     paddingVertical: 10,
     paddingHorizontal: 20,
     marginRight: 10,
     borderRadius: 24,
   },
-  active: {
-    backgroundColor: '#40423d',
-  },
   text: {
-    color: '#40423d',
-    fontFamily: 'ChineseRocks',
     fontSize: 14,
-  },
-  activeText: {
-    color: '#dec29b',
   },
 });

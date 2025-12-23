@@ -4,14 +4,42 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
+import { themes } from '../themes';
+
+// Collect all font assets from all themes
+const allFontAssets = Object.values(themes).reduce(
+  (acc, theme) => ({ ...acc, ...theme.fontAssets }),
+  {}
+);
 
 // Keep splash screen visible while loading fonts
 SplashScreen.preventAutoHideAsync();
 
+function RootLayoutContent() {
+  const { theme, isLoading } = useTheme();
+  const { colors } = theme;
+
+  if (isLoading) {
+    return (
+      <View style={[styles.loading, { backgroundColor: colors.parchment }]}>
+        <ActivityIndicator size="large" color={colors.charcoal} />
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+      </Stack>
+      <StatusBar style={colors.parchment === '#1a1a1a' ? 'light' : 'dark'} />
+    </>
+  );
+}
+
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    ChineseRocks: require('../assets/fonts/ChineseRocks.ttf'),
-  });
+  const [fontsLoaded] = useFonts(allFontAssets);
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -22,18 +50,15 @@ export default function RootLayout() {
   if (!fontsLoaded) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#40423d" />
+        <ActivityIndicator size="large" color="#888" />
       </View>
     );
   }
 
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-      </Stack>
-      <StatusBar style="light" />
-    </>
+    <ThemeProvider>
+      <RootLayoutContent />
+    </ThemeProvider>
   );
 }
 
@@ -42,6 +67,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#dec29b',
+    backgroundColor: '#1a1a1a',
   },
 });

@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RouteStep } from '../services/routing';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Props {
   currentStep: RouteStep;
@@ -36,48 +37,96 @@ export function NavigationView({
   totalDuration,
   onEndNavigation,
 }: Props) {
+  const { theme } = useTheme();
+  const { colors, fonts } = theme;
+
   return (
     <View style={styles.container}>
       {/* Current instruction - top banner */}
       <View style={styles.currentInstructionContainer}>
-        <View style={styles.currentInstruction}>
-          <Text style={styles.currentInstructionText} numberOfLines={2}>
+        <View
+          style={[
+            styles.currentInstruction,
+            { backgroundColor: colors.charcoal, borderColor: colors.route },
+          ]}
+        >
+          <Text
+            style={[
+              styles.currentInstructionText,
+              { color: colors.parchment, fontFamily: fonts.display },
+            ]}
+            numberOfLines={2}
+          >
             {currentStep.instruction}
           </Text>
-          <Text style={styles.distanceToManeuver}>
+          <Text
+            style={[
+              styles.distanceToManeuver,
+              { color: colors.route, fontFamily: fonts.display },
+            ]}
+          >
             {formatDistance(distanceToNextManeuver)}
           </Text>
         </View>
       </View>
 
       {/* Bottom panel */}
-      <View style={styles.bottomPanel}>
+      <View
+        style={[
+          styles.bottomPanel,
+          { backgroundColor: colors.parchment, borderColor: colors.charcoal },
+        ]}
+      >
         {/* Trip summary */}
         <View style={styles.tripSummary}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{formatDuration(totalDuration)}</Text>
-            <Text style={styles.summaryLabel}>remaining</Text>
+            <Text
+              style={[styles.summaryValue, { color: colors.charcoal, fontFamily: fonts.display }]}
+            >
+              {formatDuration(totalDuration)}
+            </Text>
+            <Text style={[styles.summaryLabel, { color: colors.darkerBrown }]}>remaining</Text>
           </View>
-          <View style={styles.summaryDivider} />
+          <View style={[styles.summaryDivider, { backgroundColor: colors.building }]} />
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{formatDistance(totalDistance)}</Text>
-            <Text style={styles.summaryLabel}>to go</Text>
+            <Text
+              style={[styles.summaryValue, { color: colors.charcoal, fontFamily: fonts.display }]}
+            >
+              {formatDistance(totalDistance)}
+            </Text>
+            <Text style={[styles.summaryLabel, { color: colors.darkerBrown }]}>to go</Text>
           </View>
         </View>
 
         {/* Next instruction */}
         {nextStep && (
-          <View style={styles.nextInstruction}>
-            <Text style={styles.nextLabel}>NEXT</Text>
-            <Text style={styles.nextInstructionText} numberOfLines={1}>
+          <View style={[styles.nextInstruction, { backgroundColor: colors.building }]}>
+            <Text style={[styles.nextLabel, { color: colors.darkerBrown }]}>NEXT</Text>
+            <Text
+              style={[
+                styles.nextInstructionText,
+                { color: colors.charcoal, fontFamily: fonts.display },
+              ]}
+              numberOfLines={1}
+            >
               {nextStep.instruction}
             </Text>
           </View>
         )}
 
         {/* End navigation button */}
-        <TouchableOpacity style={styles.endButton} onPress={onEndNavigation}>
-          <Text style={styles.endButtonText}>END NAVIGATION</Text>
+        <TouchableOpacity
+          style={[
+            styles.endButton,
+            { backgroundColor: colors.charcoal, borderColor: colors.route },
+          ]}
+          onPress={onEndNavigation}
+        >
+          <Text
+            style={[styles.endButtonText, { color: colors.parchment, fontFamily: fonts.display }]}
+          >
+            END NAVIGATION
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -99,31 +148,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   currentInstruction: {
-    backgroundColor: '#40423d',
     borderRadius: 16,
     padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 2,
-    borderColor: '#ee0400',
   },
   currentInstructionText: {
     flex: 1,
     fontSize: 22,
-    fontFamily: 'ChineseRocks',
-    color: '#dec29b',
     marginRight: 16,
   },
   distanceToManeuver: {
     fontSize: 28,
-    fontFamily: 'ChineseRocks',
-    color: '#ee0400',
   },
   bottomPanel: {
-    backgroundColor: '#dec29b',
     borderTopWidth: 3,
-    borderColor: '#40423d',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 16,
@@ -142,21 +183,16 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     fontSize: 24,
-    fontFamily: 'ChineseRocks',
-    color: '#40423d',
   },
   summaryLabel: {
     fontSize: 12,
-    color: '#6a5a4a',
     marginTop: 2,
   },
   summaryDivider: {
     width: 2,
     height: 40,
-    backgroundColor: '#c8b28d',
   },
   nextInstruction: {
-    backgroundColor: '#c8b28d',
     marginHorizontal: 20,
     padding: 12,
     borderRadius: 8,
@@ -164,28 +200,21 @@ const styles = StyleSheet.create({
   },
   nextLabel: {
     fontSize: 10,
-    color: '#6a5a4a',
     fontWeight: '600',
     marginBottom: 4,
   },
   nextInstructionText: {
     fontSize: 14,
-    fontFamily: 'ChineseRocks',
-    color: '#40423d',
   },
   endButton: {
-    backgroundColor: '#40423d',
     marginHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#ee0400',
   },
   endButtonText: {
-    color: '#dec29b',
     fontSize: 16,
-    fontFamily: 'ChineseRocks',
     letterSpacing: 1,
   },
 });
