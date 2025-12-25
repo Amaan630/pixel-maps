@@ -1,5 +1,5 @@
-import debounce from 'lodash.debounce';
 import * as Haptics from 'expo-haptics';
+import debounce from 'lodash.debounce';
 import { XIcon } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
@@ -81,7 +81,7 @@ export function SearchBar({ onSelectLocation, onClear, userLocation }: Props) {
         ]}
       >
         <TextInput
-          style={[styles.input, { color: colors.charcoal, fontFamily: fonts.display }]}
+          style={[styles.input, { color: colors.textOnTextBackground, fontFamily: fonts.display }]}
           placeholder="Where to?"
           placeholderTextColor={colors.mutedBrown}
           value={query}
@@ -106,7 +106,7 @@ export function SearchBar({ onSelectLocation, onClear, userLocation }: Props) {
             { backgroundColor: colors.textBackground, borderColor: colors.charcoal },
           ]}
         >
-          <Text style={[styles.loadingText, { color: colors.mutedBrown }]}>Searching...</Text>
+          <Text style={[styles.loadingText, { color: colors.textOnTextBackground }]}>Searching...</Text>
         </View>
       )}
 
@@ -125,7 +125,7 @@ export function SearchBar({ onSelectLocation, onClear, userLocation }: Props) {
                 style={[styles.resultItem, { borderBottomColor: colors.building }]}
                 onPress={() => handleSelect(item)}
               >
-                <Text style={[styles.resultText, { color: colors.charcoal }]} numberOfLines={2}>
+                <Text style={[styles.resultText, { color: colors.textOnTextBackground }]} numberOfLines={2}>
                   {item.display_name}
                 </Text>
               </TouchableOpacity>
@@ -155,6 +155,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
     fontSize: 20,
+    zIndex: 100,
   },
   clearButton: {
     width: 36,

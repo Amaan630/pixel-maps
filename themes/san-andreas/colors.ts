@@ -24,4 +24,5 @@ export const colors = {
     beach: "#D4BC99", // Sandy beach color
 
     textBackground: "#1A1A2A",
+    textOnTextBackground: "#E0E0E0",
 };

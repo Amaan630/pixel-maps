@@ -24,4 +24,5 @@ export const colors = {
     charcoalShadow: "hsla(84, 4%, 25%, 0.15)",
 
     textBackground: "#ffffff",
+    textOnTextBackground: "#40423d",
 };

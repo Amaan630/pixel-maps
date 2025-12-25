@@ -1,8 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { TravelMode } from '../services/routing';
 import { useTheme } from '../contexts/ThemeContext';
+import { TravelMode } from '../services/routing';
 
 interface Props {
   mode: TravelMode;
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     position: 'absolute',
-    top: 124,
+    top: 160,
     left: 16,
     zIndex: 99,
   },
