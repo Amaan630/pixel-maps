@@ -10,6 +10,7 @@ import { RecenterButton } from '../components/RecenterButton';
 import { SearchBar } from '../components/SearchBar';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useTheme } from '../contexts/ThemeContext';
+import { useVoiceNavigation } from '../hooks/useVoiceNavigation';
 import { GeocodingResult } from '../services/geocoding';
 import { getRoute, RouteResponse, TravelMode } from '../services/routing';
 
@@ -235,7 +236,17 @@ export default function MapScreen() {
   const [isNavigating, setIsNavigating] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [distanceToNextManeuver, setDistanceToNextManeuver] = useState(0);
+  const [voiceMuted, setVoiceMuted] = useState(false);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
+
+  // Voice navigation
+  useVoiceNavigation({
+    isNavigating,
+    currentStepIndex,
+    currentStep: route?.steps[currentStepIndex] ?? null,
+    distanceToNextManeuver,
+    isMuted: voiceMuted,
+  });
 
   useEffect(() => {
     (async () => {
@@ -518,6 +529,8 @@ export default function MapScreen() {
           totalDistance={remainingDistance}
           totalDuration={remainingDuration}
           onEndNavigation={handleEndNavigation}
+          voiceMuted={voiceMuted}
+          onToggleVoice={() => setVoiceMuted((m) => !m)}
         />
       )}
 

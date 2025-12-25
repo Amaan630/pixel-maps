@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, {
   BottomSheetFooter,
   BottomSheetFooterProps,
@@ -19,6 +20,8 @@ interface Props {
   totalDistance: number;
   totalDuration: number;
   onEndNavigation: () => void;
+  voiceMuted: boolean;
+  onToggleVoice: () => void;
 }
 
 function formatDistance(meters: number): string {
@@ -47,6 +50,8 @@ export function NavigationView({
   totalDistance,
   totalDuration,
   onEndNavigation,
+  voiceMuted,
+  onToggleVoice,
 }: Props) {
   const { theme } = useTheme();
   const { colors, fonts } = theme;
@@ -127,6 +132,17 @@ export function NavigationView({
           >
             {formatDistance(distanceToNextManeuver)}
           </Text>
+          <TouchableOpacity
+            style={[styles.muteButton, { backgroundColor: colors.parchment }]}
+            onPress={onToggleVoice}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={voiceMuted ? 'volume-mute' : 'volume-high'}
+              size={22}
+              color={colors.charcoal}
+            />
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
@@ -257,6 +273,14 @@ const styles = StyleSheet.create({
   },
   distanceToManeuver: {
     fontSize: 28,
+    marginRight: 12,
+  },
+  muteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sheetShadow: {
     shadowColor: '#000',
