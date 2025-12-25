@@ -167,7 +167,7 @@ export function DirectionsPanel({
                 { color: colors.charcoal, fontFamily: fonts.display },
               ]}
             >
-              Arrive at your destination
+              Arrive at your waypoint
             </Text>
           </View>
         </View>

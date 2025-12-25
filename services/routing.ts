@@ -32,7 +32,7 @@ function formatOSRMInstruction(step: any): string {
     case 'depart':
       return `Head ${maneuver.modifier || 'forward'} on ${name}`;
     case 'arrive':
-      return 'Arrive at your destination';
+      return 'Arrive at your waypoint';
     case 'turn':
       return `Turn ${maneuver.modifier || ''} onto ${name}`.trim();
     case 'new name':

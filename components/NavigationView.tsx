@@ -235,7 +235,7 @@ export function NavigationView({
                   { color: colors.charcoal, fontFamily: fonts.display },
                 ]}
               >
-                Arrive at destination
+                Arrive at waypoint
               </Text>
             </View>
           </View>

@@ -10,8 +10,8 @@ export const colors = {
     park: "#5A7A4A", // Olive green parks
     route: "#C54040", // Red route line (like SA gang territory)
     userLocation: "#FF6B6B", // Red user dot
-    mutedBrown: "#D4BC99", // Tan/sand color
-    darkerBrown: "#B8A080", // Darker tan
+    mutedBrown: "#E0E0E0", // Tan/sand color
+    darkerBrown: "#E0E0E0", // Darker tan
 
     // Map-specific colors
     roadDark: "#1A1A2A", // Main road color - very dark
@@ -21,7 +21,7 @@ export const colors = {
     charcoalTranslucent: "rgba(26, 26, 42, 0.9)",
     charcoalShadow: "rgba(26, 26, 42, 0.15)",
     forest: "#4A6A3A", // Darker forest green
-    beach: "#D4BC99", // Sandy beach color
+    beach: "#E0E0E0", // Sandy beach color
 
     textBackground: "#1A1A2A",
     textOnTextBackground: "#E0E0E0",

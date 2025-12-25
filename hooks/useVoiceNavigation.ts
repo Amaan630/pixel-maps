@@ -57,7 +57,7 @@ export function useVoiceNavigation({
 
       // Check if this is the arrival step
       if (currentStep.maneuver.type === 'arrive') {
-        speak('You have arrived at your destination');
+        speak('You have arrived at your waypoint');
       } else {
         speak(currentStep.instruction);
       }

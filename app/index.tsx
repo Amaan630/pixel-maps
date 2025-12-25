@@ -2,16 +2,19 @@ import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { WebView } from 'react-native-webview';
+import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { DirectionsPanel } from '../components/DirectionsPanel';
 import { ModeSelector } from '../components/ModeSelector';
 import { NavigationView } from '../components/NavigationView';
+import { POISheet } from '../components/POISheet';
 import { RecenterButton } from '../components/RecenterButton';
 import { SearchBar } from '../components/SearchBar';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useTheme } from '../contexts/ThemeContext';
+import { usePOIIcons } from '../hooks/usePOIIcons';
 import { useVoiceNavigation } from '../hooks/useVoiceNavigation';
 import { GeocodingResult } from '../services/geocoding';
+import { fetchPOIs, MapBounds, POI } from '../services/poi';
 import { getRoute, RouteResponse, TravelMode } from '../services/routing';
 
 // Haversine formula to calculate distance between two coordinates
@@ -67,6 +70,16 @@ function getMapHTML(
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .poi-marker {
+      width: 32px;
+      height: 32px;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+      pointer-events: auto;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -142,6 +155,33 @@ function getMapHTML(
     // Destination marker reference
     let destinationMarker = null;
 
+    // POI markers storage
+    const poiMarkers = new Map();
+
+    // Send bounds to React Native when map moves
+    let boundsDebounceTimer = null;
+    function sendBoundsUpdate() {
+      if (boundsDebounceTimer) clearTimeout(boundsDebounceTimer);
+      boundsDebounceTimer = setTimeout(() => {
+        const bounds = map.getBounds();
+        window.ReactNativeWebView?.postMessage(JSON.stringify({
+          type: 'boundsChanged',
+          north: bounds.getNorth(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          west: bounds.getWest()
+        }));
+      }, 500);
+    }
+
+    map.on('moveend', sendBoundsUpdate);
+    map.on('zoomend', sendBoundsUpdate);
+
+    // Send initial bounds after map loads
+    map.on('load', () => {
+      setTimeout(sendBoundsUpdate, 100);
+    });
+
     // Handle messages from React Native
     window.addEventListener('message', (event) => {
       try {
@@ -204,6 +244,65 @@ function getMapHTML(
             destinationMarker = null;
           }
         }
+
+        if (data.type === 'setPOIs') {
+          // data.pois = [{ id, category, lat, lon, icon }]
+          // data.icons = { category: base64DataUrl }
+          const currentIds = new Set(data.pois.map(p => p.id));
+
+          // Remove markers that are no longer in the list
+          for (const [id, marker] of poiMarkers) {
+            if (!currentIds.has(id)) {
+              marker.remove();
+              poiMarkers.delete(id);
+            }
+          }
+
+          // Add or update markers
+          for (const poi of data.pois) {
+            if (poiMarkers.has(poi.id)) continue; // Already exists
+
+            const iconUrl = data.icons[poi.category];
+            if (!iconUrl) continue; // No icon for this category
+
+            const el = document.createElement('div');
+            el.className = 'poi-marker';
+            el.style.backgroundImage = 'url(' + iconUrl + ')';
+
+            const marker = new maplibregl.Marker({ element: el })
+              .setLngLat([poi.lon, poi.lat])
+              .addTo(map);
+
+            // Add click/touch handler to marker element
+            const markerEl = marker.getElement();
+            const poiData = JSON.parse(JSON.stringify(poi)); // Clone to avoid closure issues
+
+            markerEl.addEventListener('click', function(e) {
+              e.stopPropagation();
+              window.ReactNativeWebView?.postMessage(JSON.stringify({
+                type: 'poiClicked',
+                poi: poiData
+              }));
+            });
+
+            markerEl.addEventListener('touchend', function(e) {
+              e.stopPropagation();
+              window.ReactNativeWebView?.postMessage(JSON.stringify({
+                type: 'poiClicked',
+                poi: poiData
+              }));
+            });
+
+            poiMarkers.set(poi.id, marker);
+          }
+        }
+
+        if (data.type === 'clearPOIs') {
+          for (const [id, marker] of poiMarkers) {
+            marker.remove();
+          }
+          poiMarkers.clear();
+        }
       } catch (e) {
         console.error('Message handling error:', e);
       }
@@ -247,6 +346,63 @@ export default function MapScreen() {
     distanceToNextManeuver,
     isMuted: voiceMuted,
   });
+
+  // POI state
+  const { icons: poiIcons, loading: poiIconsLoading } = usePOIIcons(themeName);
+  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+  const [pois, setPois] = useState<POI[]>([]);
+  const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
+
+  // Fetch POIs when bounds change
+  useEffect(() => {
+    if (!mapBounds || poiIconsLoading) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const fetchedPois = await fetchPOIs(mapBounds);
+      if (cancelled) return;
+      setPois(fetchedPois);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapBounds, poiIconsLoading]);
+
+  // Send POIs to WebView when POIs or icons change
+  useEffect(() => {
+    if (pois.length === 0 || Object.keys(poiIcons).length === 0) return;
+
+    webViewRef.current?.postMessage(
+      JSON.stringify({
+        type: 'setPOIs',
+        pois: pois.map((p) => ({ id: p.id, category: p.category, name: p.name, lat: p.lat, lon: p.lon })),
+        icons: poiIcons,
+      })
+    );
+  }, [pois, poiIcons]);
+
+  // Handle WebView messages
+  const handleWebViewMessage = useCallback((event: WebViewMessageEvent) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+
+      if (data.type === 'boundsChanged') {
+        setMapBounds({
+          north: data.north,
+          south: data.south,
+          east: data.east,
+          west: data.west,
+        });
+      }
+      if (data.type === 'poiClicked') {
+        setSelectedPOI(data.poi);
+      }
+    } catch {
+      // Silently ignore malformed messages
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -309,6 +465,20 @@ export default function MapScreen() {
       }
     }
     setRouteLoading(false);
+  };
+
+  // Handle setting waypoint from POI
+  const handleSetWaypointFromPOI = (poi: POI) => {
+    // Convert POI to GeocodingResult format
+    const result: GeocodingResult = {
+      place_id: parseInt(poi.id.replace('osm-', ''), 10) || 0,
+      lat: String(poi.lat),
+      lon: String(poi.lon),
+      display_name: poi.name || poi.category.replace(/_/g, ' '),
+      type: poi.category,
+      importance: 1,
+    };
+    handleSelectLocation(result);
   };
 
   // Handle travel mode change
@@ -480,6 +650,7 @@ export default function MapScreen() {
         bounces={false}
         javaScriptEnabled={true}
         domStorageEnabled={true}
+        onMessage={handleWebViewMessage}
         originWhitelist={['*']}
       />
 
@@ -533,6 +704,13 @@ export default function MapScreen() {
           onToggleVoice={() => setVoiceMuted((m) => !m)}
         />
       )}
+
+      {/* POI Detail Sheet */}
+      <POISheet
+        poi={selectedPOI}
+        onClose={() => setSelectedPOI(null)}
+        onSetWaypoint={handleSetWaypointFromPOI}
+      />
 
       {/* Loading overlay */}
       {routeLoading && (
