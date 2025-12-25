@@ -1,3 +1,5 @@
+import debounce from 'lodash.debounce';
+import { XIcon } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
   FlatList,
@@ -7,16 +9,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import debounce from 'lodash.debounce';
-import { GeocodingResult, searchAddress } from '../services/geocoding';
 import { useTheme } from '../contexts/ThemeContext';
+import { GeocodingResult, searchAddress } from '../services/geocoding';
 
 interface Props {
   onSelectLocation: (result: GeocodingResult) => void;
   onClear?: () => void;
+  userLocation?: { lat: number; lon: number } | null;
 }
 
-export function SearchBar({ onSelectLocation, onClear }: Props) {
+export function SearchBar({ onSelectLocation, onClear, userLocation }: Props) {
   const { theme } = useTheme();
   const { colors, fonts } = theme;
 
@@ -26,14 +28,14 @@ export function SearchBar({ onSelectLocation, onClear }: Props) {
   const [hasSelection, setHasSelection] = useState(false);
 
   const debouncedSearch = useCallback(
-    debounce(async (text: string) => {
+    debounce(async (text: string, location?: { lat: number; lon: number } | null) => {
       if (text.length < 3) {
         setResults([]);
         return;
       }
       setLoading(true);
       try {
-        const data = await searchAddress(text);
+        const data = await searchAddress(text, location ?? undefined);
         setResults(data);
       } catch (e) {
         console.error('Search error:', e);
@@ -47,7 +49,7 @@ export function SearchBar({ onSelectLocation, onClear }: Props) {
   const handleChangeText = (text: string) => {
     setQuery(text);
     setHasSelection(false);
-    debouncedSearch(text);
+    debouncedSearch(text, userLocation);
   };
 
   const handleSelect = (item: GeocodingResult) => {
@@ -70,7 +72,7 @@ export function SearchBar({ onSelectLocation, onClear }: Props) {
       <View
         style={[
           styles.inputContainer,
-          { backgroundColor: colors.parchment, borderColor: colors.charcoal },
+          { backgroundColor: colors.textBackground, borderColor: colors.charcoal },
         ]}
       >
         <TextInput
@@ -87,7 +89,7 @@ export function SearchBar({ onSelectLocation, onClear }: Props) {
             style={[styles.clearButton, { backgroundColor: colors.charcoal }]}
             onPress={handleClear}
           >
-            <Text style={[styles.clearText, { color: colors.parchment }]}>X</Text>
+            <XIcon width={24} height={24} strokeWidth={2} stroke={colors.parchment} />
           </TouchableOpacity>
         )}
       </View>
@@ -96,7 +98,7 @@ export function SearchBar({ onSelectLocation, onClear }: Props) {
         <View
           style={[
             styles.loadingContainer,
-            { backgroundColor: colors.parchment, borderColor: colors.charcoal },
+            { backgroundColor: colors.textBackground, borderColor: colors.charcoal },
           ]}
         >
           <Text style={[styles.loadingText, { color: colors.mutedBrown }]}>Searching...</Text>
@@ -107,7 +109,7 @@ export function SearchBar({ onSelectLocation, onClear }: Props) {
         <FlatList
           style={[
             styles.results,
-            { backgroundColor: colors.parchment, borderColor: colors.charcoal },
+            { backgroundColor: colors.textBackground, borderColor: colors.charcoal },
           ]}
           data={results}
           keyExtractor={(item) => item.place_id.toString()}
@@ -140,12 +142,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 2,
-    borderRadius: 8,
+    borderRadius: 40,
   },
   input: {
     flex: 1,
     padding: 14,
-    fontSize: 16,
+    fontSize: 20,
   },
   clearButton: {
     width: 36,
@@ -160,6 +162,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loadingContainer: {
+    marginTop: -25,
+    paddingTop: 25,
+    zIndex: -1,
     borderWidth: 2,
     borderTopWidth: 0,
     borderBottomLeftRadius: 8,
@@ -170,6 +175,9 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   results: {
+    marginTop: -25,
+    paddingTop: 25,
+    zIndex: -1,
     borderWidth: 2,
     borderTopWidth: 0,
     borderBottomLeftRadius: 8,

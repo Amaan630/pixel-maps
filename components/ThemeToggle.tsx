@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   chevron: {
-    fontSize: 16,
+    fontSize: 20,
     color: '#FFFFFF',
     marginLeft: 12,
     textShadowColor: 'rgba(0,0,0,0.5)',

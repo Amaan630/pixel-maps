@@ -1,6 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { RouteStep } from '../services/routing';
 import { useTheme } from '../contexts/ThemeContext';
+import { RouteStep } from '../services/routing';
 
 interface Props {
   currentStep: RouteStep;
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   endButtonText: {
-    fontSize: 16,
+    fontSize: 20,
     letterSpacing: 1,
   },
 });

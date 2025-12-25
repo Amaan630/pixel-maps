@@ -1,4 +1,5 @@
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { MousePointer2Icon } from 'lucide-react-native';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface Props {
@@ -18,10 +19,7 @@ export function RecenterButton({ onPress }: Props) {
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <Text style={[styles.icon, { color: colors.charcoal }]}>
-        {/* GPS/location crosshair icon using unicode */}
-        ◎
-      </Text>
+      <MousePointer2Icon width={24} height={24} strokeWidth={2} stroke={colors.charcoal} />
     </TouchableOpacity>
   );
 }
@@ -31,9 +29,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     right: 16,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
@@ -46,5 +44,7 @@ const styles = StyleSheet.create({
   },
   icon: {
     fontSize: 24,
+    marginBottom: -1,
+    marginRight: -1,
   },
 });

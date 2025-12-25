@@ -476,7 +476,13 @@ export default function MapScreen() {
 
       {/* Search bar overlay (hidden during active navigation) */}
       {!isNavigating && (
-        <SearchBar onSelectLocation={handleSelectLocation} onClear={handleClearRoute} />
+        <SearchBar
+          onSelectLocation={handleSelectLocation}
+          onClear={handleClearRoute}
+          userLocation={
+            location ? { lat: location.coords.latitude, lon: location.coords.longitude } : null
+          }
+        />
       )}
 
       {/* Recenter button (hidden during navigation and when route panel is shown) */}
@@ -547,7 +553,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
+    fontSize: 20,
   },
   errorText: {
     fontSize: 18,
@@ -568,7 +574,7 @@ const styles = StyleSheet.create({
   },
   loadingRouteText: {
     marginTop: 12,
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
   },
 });

@@ -1,6 +1,7 @@
+import { XIcon } from 'lucide-react-native';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { RouteStep } from '../services/routing';
 import { useTheme } from '../contexts/ThemeContext';
+import { RouteStep } from '../services/routing';
 
 interface Props {
   steps: RouteStep[];
@@ -65,7 +66,7 @@ export function DirectionsPanel({
           style={[styles.closeButton, { backgroundColor: colors.charcoal }]}
           onPress={onClose}
         >
-          <Text style={[styles.closeText, { color: colors.parchment }]}>X</Text>
+          <XIcon width={24} height={24} strokeWidth={2} stroke={colors.parchment} />
         </TouchableOpacity>
       </View>
 
@@ -156,7 +157,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   distance: {
-    fontSize: 16,
+    fontSize: 20,
     marginTop: 2,
   },
   closeButton: {
@@ -168,7 +169,7 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 20,
   },
   stepsList: {
     paddingHorizontal: 20,
