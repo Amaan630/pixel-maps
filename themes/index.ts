@@ -2,9 +2,10 @@
 
 import * as cyberpunk from "./cyberpunk";
 import * as losAngeles from "./los-angeles";
+import * as sanAndreas from "./san-andreas";
 import * as western from "./western";
 
-export type ThemeName = "western" | "los-angeles" | "cyberpunk";
+export type ThemeName = "western" | "los-angeles" | "cyberpunk" | "san-andreas";
 
 export interface Theme {
     name: ThemeName;
@@ -47,6 +48,14 @@ export const themes: Record<ThemeName, Theme> = {
         fonts: cyberpunk.fonts,
         fontAssets: cyberpunk.fontAssets,
         mapStyleJSON: cyberpunk.mapStyleJSON,
+    },
+    "san-andreas": {
+        name: "san-andreas",
+        displayName: "San Andreas",
+        colors: sanAndreas.colors,
+        fonts: sanAndreas.fonts,
+        fontAssets: sanAndreas.fontAssets,
+        mapStyleJSON: sanAndreas.mapStyleJSON,
     },
 };
 
