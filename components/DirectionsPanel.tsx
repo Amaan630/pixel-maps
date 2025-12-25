@@ -1,5 +1,13 @@
+import BottomSheet, {
+  BottomSheetFooter,
+  BottomSheetFooterProps,
+  BottomSheetScrollView,
+} from '@gorhom/bottom-sheet';
+import * as Haptics from 'expo-haptics';
 import { XIcon } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useMemo, useRef } from 'react';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { RouteStep } from '../services/routing';
 
@@ -38,21 +46,71 @@ export function DirectionsPanel({
 }: Props) {
   const { theme } = useTheme();
   const { colors, fonts } = theme;
+  const insets = useSafeAreaInsets();
+  const bottomSheetRef = useRef<BottomSheet>(null);
+
+  // Snap points: 40% (compact), 70% (default), 95% (expanded)
+  const snapPoints = useMemo(() => ['40%', '70%', '95%'], []);
+
+  // Handle sheet close
+  const handleSheetChange = useCallback(
+    (index: number) => {
+      if (index === -1) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
 
   // Filter out empty/arrival steps for cleaner display
-  const displaySteps = steps.filter(
-    (step) => step.instruction && step.distance > 0
+  const displaySteps = steps.filter((step) => step.instruction && step.distance > 0);
+
+  const handleStartNavigation = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onStartNavigation();
+  };
+
+  // Sticky footer component
+  const renderFooter = useCallback(
+    (props: BottomSheetFooterProps) => (
+      <BottomSheetFooter {...props}>
+        <View
+          style={[
+            styles.buttonContainer,
+            {
+              backgroundColor: colors.parchment,
+              borderTopColor: colors.building,
+              paddingBottom: insets.bottom + 16,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.startButton, { backgroundColor: colors.route, borderColor: colors.charcoal }]}
+            onPress={handleStartNavigation}
+          >
+            <Text style={[styles.startButtonText, { fontFamily: fonts.display }]}>
+              START NAVIGATION
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </BottomSheetFooter>
+    ),
+    [colors, fonts, handleStartNavigation, insets.bottom]
   );
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.parchment, borderColor: colors.charcoal },
-      ]}
+    <BottomSheet
+      ref={bottomSheetRef}
+      index={1}
+      snapPoints={snapPoints}
+      onChange={handleSheetChange}
+      enablePanDownToClose
+      style={styles.sheetShadow}
+      backgroundStyle={[styles.sheetBackground, { backgroundColor: colors.parchment }]}
+      handleIndicatorStyle={[styles.handleIndicator, { backgroundColor: colors.charcoal }]}
+      footerComponent={renderFooter}
     >
-      <View style={[styles.handle, { backgroundColor: colors.charcoal }]} />
-
+      {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.building }]}>
         <View style={styles.summaryContainer}>
           <Text style={[styles.duration, { color: colors.charcoal, fontFamily: fonts.display }]}>
@@ -70,7 +128,12 @@ export function DirectionsPanel({
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.stepsList} showsVerticalScrollIndicator={false}>
+      {/* Scrollable steps list */}
+      <BottomSheetScrollView
+        style={styles.stepsList}
+        contentContainerStyle={styles.stepsListContent}
+        showsVerticalScrollIndicator={false}
+      >
         {displaySteps.map((step, index) => (
           <View key={index} style={[styles.step, { borderBottomColor: colors.building }]}>
             <View style={[styles.stepNumber, { backgroundColor: colors.charcoal }]}>
@@ -93,7 +156,7 @@ export function DirectionsPanel({
         ))}
 
         {/* Final arrival step */}
-        <View style={[styles.step, { borderBottomColor: colors.building }]}>
+        <View style={[styles.step, { borderBottomWidth: 0 }]}>
           <View style={[styles.stepNumber, { backgroundColor: colors.route }]}>
             <Text style={[styles.stepNumberText, { color: colors.parchment }]}>!</Text>
           </View>
@@ -108,38 +171,26 @@ export function DirectionsPanel({
             </Text>
           </View>
         </View>
-
-        <View style={styles.bottomPadding} />
-      </ScrollView>
-
-      {/* Start Navigation Button */}
-      <TouchableOpacity
-        style={[styles.startButton, { backgroundColor: colors.route, borderColor: colors.charcoal }]}
-        onPress={onStartNavigation}
-      >
-        <Text style={[styles.startButtonText, { fontFamily: fonts.display }]}>START NAVIGATION</Text>
-      </TouchableOpacity>
-    </View>
+      </BottomSheetScrollView>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    maxHeight: '45%',
-    borderTopWidth: 3,
+  sheetShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  sheetBackground: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
-  handle: {
+  handleIndicator: {
     width: 40,
     height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 10,
     opacity: 0.5,
   },
   header: {
@@ -167,12 +218,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeText: {
-    fontWeight: '700',
-    fontSize: 20,
-  },
   stepsList: {
+    flex: 1,
     paddingHorizontal: 20,
+  },
+  stepsListContent: {
+    paddingBottom: 100, // Space for sticky footer
   },
   step: {
     flexDirection: 'row',
@@ -203,12 +254,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
-  bottomPadding: {
-    height: 20,
+  buttonContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
   },
   startButton: {
-    marginHorizontal: 20,
-    marginBottom: 20,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',

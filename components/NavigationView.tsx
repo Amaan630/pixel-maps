@@ -1,10 +1,20 @@
+import BottomSheet, {
+  BottomSheetFooter,
+  BottomSheetFooterProps,
+  BottomSheetScrollView,
+} from '@gorhom/bottom-sheet';
+import * as Haptics from 'expo-haptics';
+import { useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { SlideInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { RouteStep } from '../services/routing';
 
 interface Props {
   currentStep: RouteStep;
   nextStep: RouteStep | null;
+  remainingSteps: RouteStep[];
   distanceToNextManeuver: number;
   totalDistance: number;
   totalDuration: number;
@@ -32,6 +42,7 @@ function formatDuration(seconds: number): string {
 export function NavigationView({
   currentStep,
   nextStep,
+  remainingSteps,
   distanceToNextManeuver,
   totalDistance,
   totalDuration,
@@ -39,11 +50,60 @@ export function NavigationView({
 }: Props) {
   const { theme } = useTheme();
   const { colors, fonts } = theme;
+  const insets = useSafeAreaInsets();
+  const bottomSheetRef = useRef<BottomSheet>(null);
+
+  // Snap points: collapsed (summary + next), expanded (full remaining route)
+  const snapPoints = useMemo(() => ['28%', '70%'], []);
+
+  // Filter display steps (skip first since it's current)
+  const displaySteps = remainingSteps.filter((step) => step.instruction && step.distance > 0);
+
+  const handleEndNavigation = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onEndNavigation();
+  }, [onEndNavigation]);
+
+  // Sticky footer component
+  const renderFooter = useCallback(
+    (props: BottomSheetFooterProps) => (
+      <BottomSheetFooter {...props}>
+        <View
+          style={[
+            styles.buttonContainer,
+            {
+              backgroundColor: colors.parchment,
+              borderTopColor: colors.building,
+              paddingBottom: insets.bottom + 16,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[
+              styles.endButton,
+              { backgroundColor: colors.charcoal, borderColor: colors.route },
+            ]}
+            onPress={handleEndNavigation}
+          >
+            <Text
+              style={[styles.endButtonText, { color: colors.parchment, fontFamily: fonts.display }]}
+            >
+              END NAVIGATION
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </BottomSheetFooter>
+    ),
+    [colors, fonts, handleEndNavigation, insets.bottom]
+  );
 
   return (
     <View style={styles.container}>
       {/* Current instruction - top banner */}
-      <View style={styles.currentInstructionContainer}>
+      <Animated.View
+        entering={SlideInDown.duration(300).springify()}
+        style={[styles.currentInstructionContainer, { paddingTop: insets.top + 10 }]}
+      >
         <View
           style={[
             styles.currentInstruction,
@@ -68,14 +128,17 @@ export function NavigationView({
             {formatDistance(distanceToNextManeuver)}
           </Text>
         </View>
-      </View>
+      </Animated.View>
 
-      {/* Bottom panel */}
-      <View
-        style={[
-          styles.bottomPanel,
-          { backgroundColor: colors.parchment, borderColor: colors.charcoal },
-        ]}
+      {/* Bottom panel - expandable */}
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={0}
+        snapPoints={snapPoints}
+        style={styles.sheetShadow}
+        backgroundStyle={[styles.sheetBackground, { backgroundColor: colors.parchment }]}
+        handleIndicatorStyle={[styles.handleIndicator, { backgroundColor: colors.charcoal }]}
+        footerComponent={renderFooter}
       >
         {/* Trip summary */}
         <View style={styles.tripSummary}>
@@ -98,37 +161,70 @@ export function NavigationView({
           </View>
         </View>
 
-        {/* Next instruction */}
-        {nextStep && (
-          <View style={[styles.nextInstruction, { backgroundColor: colors.building }]}>
-            <Text style={[styles.nextLabel, { color: colors.darkerBrown }]}>NEXT</Text>
-            <Text
-              style={[
-                styles.nextInstructionText,
-                { color: colors.charcoal, fontFamily: fonts.display },
-              ]}
-              numberOfLines={1}
-            >
-              {nextStep.instruction}
-            </Text>
-          </View>
-        )}
-
-        {/* End navigation button */}
-        <TouchableOpacity
-          style={[
-            styles.endButton,
-            { backgroundColor: colors.charcoal, borderColor: colors.route },
-          ]}
-          onPress={onEndNavigation}
+        {/* Scrollable remaining steps */}
+        <BottomSheetScrollView
+          style={styles.stepsList}
+          contentContainerStyle={styles.stepsListContent}
+          showsVerticalScrollIndicator={false}
         >
-          <Text
-            style={[styles.endButtonText, { color: colors.parchment, fontFamily: fonts.display }]}
-          >
-            END NAVIGATION
-          </Text>
-        </TouchableOpacity>
-      </View>
+          {/* Next instruction (highlighted) */}
+          {nextStep && (
+            <View style={[styles.nextInstruction, { backgroundColor: colors.building }]}>
+              <Text style={[styles.nextLabel, { color: colors.darkerBrown }]}>NEXT</Text>
+              <Text
+                style={[
+                  styles.nextInstructionText,
+                  { color: colors.charcoal, fontFamily: fonts.display },
+                ]}
+                numberOfLines={2}
+              >
+                {nextStep.instruction}
+              </Text>
+            </View>
+          )}
+
+          {/* Remaining steps */}
+          {displaySteps.slice(1).map((step, index) => (
+            <View key={index} style={[styles.step, { borderBottomColor: colors.building }]}>
+              <View style={[styles.stepNumber, { backgroundColor: colors.charcoal }]}>
+                <Text style={[styles.stepNumberText, { color: colors.parchment }]}>
+                  {index + 2}
+                </Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text
+                  style={[
+                    styles.stepInstruction,
+                    { color: colors.charcoal, fontFamily: fonts.display },
+                  ]}
+                >
+                  {step.instruction}
+                </Text>
+                <Text style={[styles.stepMeta, { color: colors.mutedBrown }]}>
+                  {formatDistance(step.distance)}
+                </Text>
+              </View>
+            </View>
+          ))}
+
+          {/* Arrival */}
+          <View style={[styles.step, { borderBottomWidth: 0 }]}>
+            <View style={[styles.stepNumber, { backgroundColor: colors.route }]}>
+              <Text style={[styles.stepNumberText, { color: colors.parchment }]}>!</Text>
+            </View>
+            <View style={styles.stepContent}>
+              <Text
+                style={[
+                  styles.stepInstruction,
+                  { color: colors.charcoal, fontFamily: fonts.display },
+                ]}
+              >
+                Arrive at destination
+              </Text>
+            </View>
+          </View>
+        </BottomSheetScrollView>
+      </BottomSheet>
     </View>
   );
 }
@@ -140,12 +236,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'space-between',
     pointerEvents: 'box-none',
   },
   currentInstructionContainer: {
-    paddingTop: 50,
     paddingHorizontal: 16,
+    pointerEvents: 'auto',
   },
   currentInstruction: {
     borderRadius: 16,
@@ -163,19 +258,28 @@ const styles = StyleSheet.create({
   distanceToManeuver: {
     fontSize: 28,
   },
-  bottomPanel: {
-    borderTopWidth: 3,
+  sheetShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  sheetBackground: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
+  },
+  handleIndicator: {
+    width: 40,
+    height: 4,
+    opacity: 0.5,
   },
   tripSummary: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginBottom: 16,
+    paddingVertical: 16,
   },
   summaryItem: {
     alignItems: 'center',
@@ -192,11 +296,17 @@ const styles = StyleSheet.create({
     width: 2,
     height: 40,
   },
+  stepsList: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  stepsListContent: {
+    paddingBottom: 100, // Space for sticky footer
+  },
   nextInstruction: {
-    marginHorizontal: 20,
     padding: 12,
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   nextLabel: {
     fontSize: 10,
@@ -206,8 +316,41 @@ const styles = StyleSheet.create({
   nextInstructionText: {
     fontSize: 14,
   },
+  step: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  stepNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  stepNumberText: {
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  stepContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  stepInstruction: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  stepMeta: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  buttonContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
   endButton: {
-    marginHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',

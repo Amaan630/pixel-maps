@@ -1,14 +1,17 @@
 import debounce from 'lodash.debounce';
+import * as Haptics from 'expo-haptics';
 import { XIcon } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useTheme } from '../contexts/ThemeContext';
 import { GeocodingResult, searchAddress } from '../services/geocoding';
 
@@ -53,6 +56,8 @@ export function SearchBar({ onSelectLocation, onClear, userLocation }: Props) {
   };
 
   const handleSelect = (item: GeocodingResult) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Keyboard.dismiss();
     const shortName = item.display_name.split(',').slice(0, 2).join(',');
     setQuery(shortName);
     setResults([]);
@@ -106,25 +111,27 @@ export function SearchBar({ onSelectLocation, onClear, userLocation }: Props) {
       )}
 
       {results.length > 0 && !hasSelection && (
-        <FlatList
-          style={[
-            styles.results,
-            { backgroundColor: colors.textBackground, borderColor: colors.charcoal },
-          ]}
-          data={results}
-          keyExtractor={(item) => item.place_id.toString()}
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.resultItem, { borderBottomColor: colors.building }]}
-              onPress={() => handleSelect(item)}
-            >
-              <Text style={[styles.resultText, { color: colors.charcoal }]} numberOfLines={2}>
-                {item.display_name}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
+        <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+          <FlatList
+            style={[
+              styles.results,
+              { backgroundColor: colors.textBackground, borderColor: colors.charcoal },
+            ]}
+            data={results}
+            keyExtractor={(item) => item.place_id.toString()}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.resultItem, { borderBottomColor: colors.building }]}
+                onPress={() => handleSelect(item)}
+              >
+                <Text style={[styles.resultText, { color: colors.charcoal }]} numberOfLines={2}>
+                  {item.display_name}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </Animated.View>
       )}
     </View>
   );

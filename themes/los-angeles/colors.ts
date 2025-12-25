@@ -22,4 +22,6 @@ export const colors = {
     roadHsl: "#c8c8c8", // Light gray roads
     charcoalTranslucent: "rgba(224, 224, 224, 0.9)",
     charcoalShadow: "rgba(224, 224, 224, 0.15)",
+
+    textBackground: "#ffffff",
 };

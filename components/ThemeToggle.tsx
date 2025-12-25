@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import {
@@ -19,6 +20,7 @@ export function ThemeToggle() {
   const displayName = themes[themeName].displayName.toUpperCase();
 
   const handleSelectTheme = (newTheme: ThemeName) => {
+    Haptics.selectionAsync();
     setTheme(newTheme);
     setExpanded(false);
   };

@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { WebView } from 'react-native-webview';
 import { DirectionsPanel } from '../components/DirectionsPanel';
 import { ModeSelector } from '../components/ModeSelector';
@@ -512,6 +513,7 @@ export default function MapScreen() {
         <NavigationView
           currentStep={route.steps[currentStepIndex]}
           nextStep={route.steps[currentStepIndex + 1] || null}
+          remainingSteps={route.steps.slice(currentStepIndex)}
           distanceToNextManeuver={distanceToNextManeuver}
           totalDistance={remainingDistance}
           totalDuration={remainingDuration}
@@ -521,7 +523,11 @@ export default function MapScreen() {
 
       {/* Loading overlay */}
       {routeLoading && (
-        <View style={[styles.loadingOverlay, { backgroundColor: `${colors.parchment}cc` }]}>
+        <Animated.View
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(150)}
+          style={[styles.loadingOverlay, { backgroundColor: `${colors.parchment}cc` }]}
+        >
           <View
             style={[
               styles.loadingBox,
@@ -533,7 +539,7 @@ export default function MapScreen() {
               Calculating route...
             </Text>
           </View>
-        </View>
+        </Animated.View>
       )}
     </View>
   );

@@ -1,4 +1,6 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { TravelMode } from '../services/routing';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -11,15 +13,26 @@ export function ModeSelector({ mode, onModeChange }: Props) {
   const { theme } = useTheme();
   const { colors, fonts } = theme;
 
+  const handleModeChange = (newMode: TravelMode) => {
+    if (newMode !== mode) {
+      Haptics.selectionAsync();
+      onModeChange(newMode);
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <Animated.View
+      entering={FadeIn.duration(200)}
+      exiting={FadeOut.duration(150)}
+      style={styles.container}
+    >
       <TouchableOpacity
         style={[
           styles.button,
           { backgroundColor: colors.parchment, borderColor: colors.charcoal },
           mode === 'walking' && { backgroundColor: colors.charcoal },
         ]}
-        onPress={() => onModeChange('walking')}
+        onPress={() => handleModeChange('walking')}
         activeOpacity={0.7}
       >
         <Text
@@ -38,7 +51,7 @@ export function ModeSelector({ mode, onModeChange }: Props) {
           { backgroundColor: colors.parchment, borderColor: colors.charcoal },
           mode === 'driving' && { backgroundColor: colors.charcoal },
         ]}
-        onPress={() => onModeChange('driving')}
+        onPress={() => handleModeChange('driving')}
         activeOpacity={0.7}
       >
         <Text
@@ -51,7 +64,7 @@ export function ModeSelector({ mode, onModeChange }: Props) {
           Driving
         </Text>
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 }
 
