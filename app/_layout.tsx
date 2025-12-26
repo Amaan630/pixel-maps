@@ -5,6 +5,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { OnboardingCarousel } from '../components/onboarding/OnboardingCarousel';
+import { PaywallScreen } from '../components/onboarding/PaywallScreen';
+import { OnboardingProvider, useOnboarding } from '../contexts/OnboardingContext';
+import { SubscriptionProvider, useSubscription } from '../contexts/SubscriptionContext';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { themes } from '../themes';
 
@@ -18,10 +22,12 @@ const allFontAssets = Object.values(themes).reduce(
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutContent() {
-  const { theme, isLoading } = useTheme();
+  const { theme, isLoading: themeLoading } = useTheme();
+  const { hasSeenOnboarding, isLoading: onboardingLoading } = useOnboarding();
+  const { isSubscribed, isLoading: subscriptionLoading } = useSubscription();
   const { colors } = theme;
 
-  if (isLoading) {
+  if (themeLoading || onboardingLoading || subscriptionLoading) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.parchment }]}>
         <ActivityIndicator size="large" color={colors.charcoal} />
@@ -29,12 +35,34 @@ function RootLayoutContent() {
     );
   }
 
+  // If subscribed, show main app
+  if (isSubscribed) {
+    return (
+      <>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+        </Stack>
+        <StatusBar style={colors.parchment === '#1a1a1a' ? 'light' : 'dark'} />
+      </>
+    );
+  }
+
+  // Not subscribed - check if user has seen onboarding
+  if (!hasSeenOnboarding) {
+    // First time user - show onboarding (which will present paywall at the end)
+    return (
+      <>
+        <OnboardingCarousel />
+        <StatusBar style="light" />
+      </>
+    );
+  }
+
+  // Returning user without subscription - show paywall directly
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-      </Stack>
-      <StatusBar style={colors.parchment === '#1a1a1a' ? 'light' : 'dark'} />
+      <PaywallScreen />
+      <StatusBar style="light" />
     </>
   );
 }
@@ -59,7 +87,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <ThemeProvider>
-        <RootLayoutContent />
+        <SubscriptionProvider>
+          <OnboardingProvider>
+            <RootLayoutContent />
+          </OnboardingProvider>
+        </SubscriptionProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
