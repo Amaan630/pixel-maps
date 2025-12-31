@@ -199,6 +199,59 @@ function getMapHTML(
     map.on('moveend', sendBoundsUpdate);
     map.on('zoomend', sendBoundsUpdate);
 
+    // Long-press to set destination
+    let longPressTimer = null;
+    let longPressCoords = null;
+
+    map.on('mousedown', (e) => {
+      longPressCoords = e.lngLat;
+      longPressTimer = setTimeout(() => {
+        if (longPressCoords) {
+          window.ReactNativeWebView?.postMessage(JSON.stringify({
+            type: 'mapLongPress',
+            longitude: longPressCoords.lng,
+            latitude: longPressCoords.lat
+          }));
+        }
+      }, 500);
+    });
+
+    map.on('mouseup', () => {
+      clearTimeout(longPressTimer);
+      longPressCoords = null;
+    });
+
+    map.on('mousemove', () => {
+      clearTimeout(longPressTimer);
+      longPressCoords = null;
+    });
+
+    // Touch events for mobile
+    map.on('touchstart', (e) => {
+      if (e.originalEvent.touches.length === 1) {
+        longPressCoords = e.lngLat;
+        longPressTimer = setTimeout(() => {
+          if (longPressCoords) {
+            window.ReactNativeWebView?.postMessage(JSON.stringify({
+              type: 'mapLongPress',
+              longitude: longPressCoords.lng,
+              latitude: longPressCoords.lat
+            }));
+          }
+        }, 500);
+      }
+    });
+
+    map.on('touchend', () => {
+      clearTimeout(longPressTimer);
+      longPressCoords = null;
+    });
+
+    map.on('touchmove', () => {
+      clearTimeout(longPressTimer);
+      longPressCoords = null;
+    });
+
     // Send initial bounds after map loads
     map.on('load', () => {
       setTimeout(sendBoundsUpdate, 100);
@@ -397,6 +450,7 @@ export default function MapScreen() {
   const [voiceMuted, setVoiceMuted] = useState(false);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const continuousLocationSubscription = useRef<Location.LocationSubscription | null>(null);
+  const handleSelectLocationRef = useRef<((result: GeocodingResult) => void) | null>(null);
 
   // Voice navigation
   useVoiceNavigation({
@@ -455,7 +509,7 @@ export default function MapScreen() {
     );
   }, [pois, poiIcons]);
 
-  // Handle WebView messages
+  // Handle WebView messages (mapLongPress handled via ref to avoid circular deps)
   const handleWebViewMessage = useCallback((event: WebViewMessageEvent) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
@@ -470,6 +524,21 @@ export default function MapScreen() {
       }
       if (data.type === 'poiClicked') {
         setSelectedPOI(data.poi);
+      }
+      if (data.type === 'mapLongPress') {
+        // Create a GeocodingResult from coordinates and trigger destination selection
+        const result: GeocodingResult = {
+          place_id: Date.now(),
+          lat: String(data.latitude),
+          lon: String(data.longitude),
+          display_name: `${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}`,
+          type: 'coordinates',
+          importance: 1,
+        };
+        // Use setTimeout to break out of the callback and call handleSelectLocation
+        setTimeout(() => {
+          handleSelectLocationRef.current?.(result);
+        }, 0);
       }
     } catch {
       // Silently ignore malformed messages
@@ -568,6 +637,9 @@ export default function MapScreen() {
     }
     setRouteLoading(false);
   };
+
+  // Keep ref updated for use in WebView message handler
+  handleSelectLocationRef.current = handleSelectLocation;
 
   // Handle setting waypoint from POI
   const handleSetWaypointFromPOI = (poi: POI) => {

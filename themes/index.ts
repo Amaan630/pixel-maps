@@ -27,7 +27,7 @@ export const themes: Record<ThemeName, Theme> = {
     },
     "los-angeles": {
         name: "los-angeles",
-        displayName: "Los Angeles",
+        displayName: "Los Santos",
         colors: losAngeles.colors,
         fonts: losAngeles.fonts,
         fontAssets: losAngeles.fontAssets,
