@@ -19,13 +19,29 @@ export interface MapBounds {
 
 // Cache for POI responses
 const poiCache = new Map<string, { pois: POI[]; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
-// Generate cache key from bounds
+// Generate cache key from bounds (coarse grid for better cache hits)
 function getBoundsKey(bounds: MapBounds): string {
-  // Round to 3 decimal places (~100m precision) for cache key
-  const round = (n: number) => Math.round(n * 1000) / 1000;
+  // Round to 2 decimal places (~1km precision) for cache key
+  // This means slight pans will hit the same cache
+  const round = (n: number) => Math.round(n * 100) / 100;
   return `${round(bounds.south)},${round(bounds.west)},${round(bounds.north)},${round(bounds.east)}`;
+}
+
+// Pad bounds by a percentage (100% = double the area in each direction)
+function padBounds(bounds: MapBounds, paddingPercent: number): MapBounds {
+  const latRange = bounds.north - bounds.south;
+  const lonRange = bounds.east - bounds.west;
+  const latPad = latRange * (paddingPercent / 100);
+  const lonPad = lonRange * (paddingPercent / 100);
+
+  return {
+    north: bounds.north + latPad,
+    south: bounds.south - latPad,
+    east: bounds.east + lonPad,
+    west: bounds.west - lonPad,
+  };
 }
 
 // Build Overpass query for all POI categories
@@ -124,14 +140,17 @@ interface OverpassResponse {
 
 // Fetch POIs from Overpass API
 export async function fetchPOIs(bounds: MapBounds): Promise<POI[]> {
-  // Check cache first
-  const cacheKey = getBoundsKey(bounds);
+  // Pad bounds by 100% to prefetch surrounding area
+  const paddedBounds = padBounds(bounds, 100);
+
+  // Check cache first (using padded bounds for cache key)
+  const cacheKey = getBoundsKey(paddedBounds);
   const cached = poiCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.pois;
   }
 
-  const query = buildOverpassQuery(bounds);
+  const query = buildOverpassQuery(paddedBounds);
   const url = 'https://overpass-api.de/api/interpreter';
 
   try {

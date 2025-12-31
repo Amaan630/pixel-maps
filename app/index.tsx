@@ -414,7 +414,7 @@ export default function MapScreen() {
   const [pois, setPois] = useState<POI[]>([]);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
 
-  // Fetch POIs when bounds change
+  // Fetch POIs when bounds change (accumulate pattern - keep old POIs)
   useEffect(() => {
     if (!mapBounds || poiIconsLoading) return;
 
@@ -423,7 +423,15 @@ export default function MapScreen() {
     (async () => {
       const fetchedPois = await fetchPOIs(mapBounds);
       if (cancelled) return;
-      setPois(fetchedPois);
+
+      // Merge new POIs with existing ones (dedupe by ID)
+      if (fetchedPois.length > 0) {
+        setPois((existing) => {
+          const existingIds = new Set(existing.map((p) => p.id));
+          const newPois = fetchedPois.filter((p) => !existingIds.has(p.id));
+          return [...existing, ...newPois];
+        });
+      }
     })();
 
     return () => {
