@@ -415,6 +415,7 @@ export default function MapScreen() {
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
 
   // Fetch POIs when bounds change (accumulate pattern - keep old POIs)
+  const MAX_POIS = 500;
   useEffect(() => {
     if (!mapBounds || poiIconsLoading) return;
 
@@ -424,12 +425,14 @@ export default function MapScreen() {
       const fetchedPois = await fetchPOIs(mapBounds);
       if (cancelled) return;
 
-      // Merge new POIs with existing ones (dedupe by ID)
+      // Merge new POIs with existing ones (dedupe by ID, cap at MAX_POIS)
       if (fetchedPois.length > 0) {
         setPois((existing) => {
           const existingIds = new Set(existing.map((p) => p.id));
           const newPois = fetchedPois.filter((p) => !existingIds.has(p.id));
-          return [...existing, ...newPois];
+          const merged = [...existing, ...newPois];
+          // Keep most recent POIs if over cap (new ones are at the end)
+          return merged.length > MAX_POIS ? merged.slice(-MAX_POIS) : merged;
         });
       }
     })();
