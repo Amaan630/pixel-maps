@@ -55,7 +55,7 @@ export const POI_CATEGORIES: POICategory[] = [
 
 // Icon set configuration
 export interface IconSetConfig {
-    name: "gta-v" | "san-andreas" | "rdr2";
+    name: "gta-v" | "san-andreas" | "rdr2" | "cyberpunk";
     icons: Partial<Record<POICategory, number>>; // require() returns number
 }
 
@@ -141,12 +141,41 @@ export const rdr2Icons: IconSetConfig = {
     },
 };
 
+// Cyberpunk 2077 Icons
+export const cyberpunkIcons: IconSetConfig = {
+    name: "cyberpunk",
+    icons: {
+        gas_station: require("../assets/minimap-icons/cyberpunk/autofixer-terminal.webp"),
+        restaurant: require("../assets/minimap-icons/cyberpunk/food.webp"),
+        fast_food: require("../assets/minimap-icons/cyberpunk/food.webp"),
+        cafe: require("../assets/minimap-icons/cyberpunk/food.webp"),
+        bar: require("../assets/minimap-icons/cyberpunk/bar.webp"),
+        hospital: require("../assets/minimap-icons/cyberpunk/medpoint.webp"),
+        pharmacy: require("../assets/minimap-icons/cyberpunk/ripperdoc.webp"),
+        police: require("../assets/minimap-icons/cyberpunk/organized-crime.webp"),
+        gym: require("../assets/minimap-icons/cyberpunk/melee-vendor.webp"),
+        clothing: require("../assets/minimap-icons/cyberpunk/clothing-vendor.webp"),
+        barber: require("../assets/minimap-icons/cyberpunk/ripperdoc.webp"),
+        tattoo: require("../assets/minimap-icons/cyberpunk/ripperdoc.webp"),
+        cinema: require("../assets/minimap-icons/cyberpunk/landmark.webp"),
+        garage: require("../assets/minimap-icons/cyberpunk/autofixer-terminal.webp"),
+        car_wash: require("../assets/minimap-icons/cyberpunk/autofixer-terminal.webp"),
+        grocery: require("../assets/minimap-icons/cyberpunk/junk-vendor.webp"),
+        bank: require("../assets/minimap-icons/cyberpunk/drop-point.webp"),
+        hotel: require("../assets/minimap-icons/cyberpunk/apartment.webp"),
+        school: require("../assets/minimap-icons/cyberpunk/netrunner.webp"),
+        airport: require("../assets/minimap-icons/cyberpunk/fast-travel.webp"),
+        strip_club: require("../assets/minimap-icons/cyberpunk/joytoy.webp"),
+        gun_shop: require("../assets/minimap-icons/cyberpunk/weapon-shop.webp"),
+    },
+};
+
 // Theme to icon set mapping
 export const themeIconSets: Record<ThemeName, IconSetConfig> = {
     "san-andreas": sanAndreasIcons,
     western: rdr2Icons,
     "los-angeles": gtaVIcons,
-    cyberpunk: gtaVIcons,
+    cyberpunk: cyberpunkIcons,
 };
 
 // Get icon set for a theme

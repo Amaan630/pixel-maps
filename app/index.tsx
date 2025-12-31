@@ -11,6 +11,7 @@ import { RecenterButton } from '../components/RecenterButton';
 import { SearchBar } from '../components/SearchBar';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLocationMarkerIcon } from '../hooks/useLocationMarkerIcon';
 import { usePOIIcons } from '../hooks/usePOIIcons';
 import { useVoiceNavigation } from '../hooks/useVoiceNavigation';
 import { GeocodingResult } from '../services/geocoding';
@@ -60,7 +61,8 @@ function getMapHTML(
   latitude: number,
   longitude: number,
   mapStyleJSON: string,
-  colors: { userLocation: string; route: string; charcoal: string }
+  colors: { userLocation: string; route: string; charcoal: string },
+  locationMarkerIcon: string | null
 ) {
   return `
 <!DOCTYPE html>
@@ -74,12 +76,13 @@ function getMapHTML(
     * { margin: 0; padding: 0; }
     html, body, #map { width: 100%; height: 100%; }
     .user-location {
-      width: 20px;
-      height: 20px;
-      background: ${colors.userLocation};
-      border: 3px solid white;
-      border-radius: 50%;
-      box-shadow: 0 0 10px rgba(66, 133, 244, 0.5);
+      width: 32px;
+      height: 32px;
+      background-image: url('${locationMarkerIcon || ''}');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
     }
     .destination-marker {
       width: 32px;
@@ -406,6 +409,7 @@ export default function MapScreen() {
 
   // POI state
   const { icons: poiIcons, loading: poiIconsLoading } = usePOIIcons(themeName);
+  const { markerIcon: locationMarkerIcon } = useLocationMarkerIcon(themeName);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [pois, setPois] = useState<POI[]>([]);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
@@ -768,16 +772,17 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* WebView with key to force reload on theme change */}
+      {/* WebView with key to force reload on theme change or marker icon load */}
       <WebView
-        key={themeName}
+        key={`${themeName}-${locationMarkerIcon ? 'icon' : 'loading'}`}
         ref={webViewRef}
         source={{
           html: getMapHTML(
             initialLocation.current?.lat ?? 37.78825,
             initialLocation.current?.lng ?? -122.4324,
             theme.mapStyleJSON,
-            colors
+            colors,
+            locationMarkerIcon
           ),
         }}
         style={styles.map}
