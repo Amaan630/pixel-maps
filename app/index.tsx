@@ -36,6 +36,25 @@ function haversineDistance(
   return R * c;
 }
 
+// Calculate bearing from point A to point B (in degrees)
+function calculateBearing(
+  [lon1, lat1]: [number, number],
+  [lon2, lat2]: [number, number]
+): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+  const dLon = toRad(lon2 - lon1);
+  const lat1Rad = toRad(lat1);
+  const lat2Rad = toRad(lat2);
+
+  const x = Math.sin(dLon) * Math.cos(lat2Rad);
+  const y = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
+  const bearing = toDeg(Math.atan2(x, y));
+  return (bearing + 360) % 360; // Normalize to 0-360
+}
+
 // Generate map HTML with theme colors
 function getMapHTML(
   latitude: number,
@@ -182,6 +201,9 @@ function getMapHTML(
       setTimeout(sendBoundsUpdate, 100);
     });
 
+    // Navigation mode state
+    let isNavigationMode = false;
+
     // Handle messages from React Native
     window.addEventListener('message', (event) => {
       try {
@@ -190,13 +212,47 @@ function getMapHTML(
         if (data.type === 'updateLocation') {
           currentUserLocation = [data.longitude, data.latitude];
           userMarker.setLngLat(currentUserLocation);
-          if (data.follow) {
+
+          if (isNavigationMode && data.bearing !== undefined && data.bearing !== null) {
+            // Navigation mode: tilted view facing the direction of travel
+            map.easeTo({
+              center: currentUserLocation,
+              bearing: data.bearing,
+              pitch: 60,
+              zoom: 17.5,
+              duration: 500
+            });
+          } else if (data.follow) {
             map.flyTo({ center: currentUserLocation });
           }
         }
 
+        if (data.type === 'setNavigationMode') {
+          isNavigationMode = data.enabled;
+          if (data.enabled) {
+            // Enter navigation mode with tilted camera
+            map.easeTo({
+              center: currentUserLocation,
+              pitch: 60,
+              zoom: 17.5,
+              duration: 500
+            });
+          } else {
+            // Exit navigation mode - reset to flat view (but keep following compass)
+            map.easeTo({
+              pitch: 0,
+              zoom: 15,
+              duration: 500
+            });
+          }
+        }
+
         if (data.type === 'recenter') {
-          map.flyTo({ center: currentUserLocation, zoom: 16 });
+          if (isNavigationMode) {
+            map.easeTo({ center: currentUserLocation, pitch: 60, zoom: 17.5, duration: 300 });
+          } else {
+            map.flyTo({ center: currentUserLocation, zoom: 16 });
+          }
         }
 
         if (data.type === 'setDestination') {
@@ -337,6 +393,7 @@ export default function MapScreen() {
   const [distanceToNextManeuver, setDistanceToNextManeuver] = useState(0);
   const [voiceMuted, setVoiceMuted] = useState(false);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
+  const continuousLocationSubscription = useRef<Location.LocationSubscription | null>(null);
 
   // Voice navigation
   useVoiceNavigation({
@@ -425,7 +482,37 @@ export default function MapScreen() {
       }
 
       setLoading(false);
+
+      // Start continuous location tracking for the blue dot
+      continuousLocationSubscription.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          distanceInterval: 5, // Update every 5 meters
+          timeInterval: 2000, // Or every 2 seconds
+        },
+        (newLocation) => {
+          setLocation(newLocation);
+          // Update user marker on map (non-navigation mode - no follow)
+          webViewRef.current?.postMessage(
+            JSON.stringify({
+              type: 'updateLocation',
+              latitude: newLocation.coords.latitude,
+              longitude: newLocation.coords.longitude,
+              heading: newLocation.coords.heading,
+              follow: false,
+            })
+          );
+        }
+      );
+
     })();
+
+    // Cleanup on unmount
+    return () => {
+      if (continuousLocationSubscription.current) {
+        continuousLocationSubscription.current.remove();
+      }
+    };
   }, []);
 
   // Handle destination selection from search
@@ -538,43 +625,60 @@ export default function MapScreen() {
       setDistanceToNextManeuver(dist);
     }
 
-    // Start watching location for navigation
+    // Stop continuous tracking (we'll use navigation-specific tracking)
+    if (continuousLocationSubscription.current) {
+      continuousLocationSubscription.current.remove();
+      continuousLocationSubscription.current = null;
+    }
+
+    // Enable navigation mode in WebView (tilted camera)
+    webViewRef.current?.postMessage(
+      JSON.stringify({
+        type: 'setNavigationMode',
+        enabled: true,
+      })
+    );
+
+    // Start watching location for navigation with highest accuracy
     locationSubscription.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.BestForNavigation,
-        distanceInterval: 10, // Update every 10 meters
-        timeInterval: 1000, // Or every second
+        distanceInterval: 5, // Update every 5 meters
+        timeInterval: 500, // Or every half second
       },
       (newLocation) => {
-        // Update user marker on map
-        webViewRef.current?.postMessage(
-          JSON.stringify({
-            type: 'updateLocation',
-            latitude: newLocation.coords.latitude,
-            longitude: newLocation.coords.longitude,
-            follow: true,
-          })
-        );
-
-        // Update location state
+        // Update location state first so we have latest step index
         setLocation(newLocation);
       }
     );
   }, [route, location]);
 
-  // Update step advancement when location changes during navigation
+  // Update step advancement and map when location changes during navigation
   useEffect(() => {
     if (!isNavigating || !route || !location) return;
 
     const currentStep = route.steps[currentStepIndex];
     if (!currentStep?.maneuver?.location) return;
 
-    const distToManeuver = haversineDistance(
-      [location.coords.longitude, location.coords.latitude],
-      currentStep.maneuver.location
-    );
+    const userLocation: [number, number] = [location.coords.longitude, location.coords.latitude];
+    const maneuverLocation = currentStep.maneuver.location;
 
+    const distToManeuver = haversineDistance(userLocation, maneuverLocation);
     setDistanceToNextManeuver(distToManeuver);
+
+    // Calculate bearing from current location to the maneuver point
+    const bearing = calculateBearing(userLocation, maneuverLocation);
+
+    // Send location update with bearing to WebView
+    webViewRef.current?.postMessage(
+      JSON.stringify({
+        type: 'updateLocation',
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        bearing: bearing,
+        follow: true,
+      })
+    );
 
     // If within 30 meters, advance to next step
     if (distToManeuver < 30 && currentStepIndex < route.steps.length - 1) {
@@ -583,16 +687,44 @@ export default function MapScreen() {
   }, [isNavigating, route, location, currentStepIndex]);
 
   // End active navigation
-  const handleEndNavigation = useCallback(() => {
+  const handleEndNavigation = useCallback(async () => {
     setIsNavigating(false);
     setCurrentStepIndex(0);
     setDistanceToNextManeuver(0);
 
-    // Stop watching location
+    // Stop navigation location tracking
     if (locationSubscription.current) {
       locationSubscription.current.remove();
       locationSubscription.current = null;
     }
+
+    // Disable navigation mode in WebView (reset to flat view)
+    webViewRef.current?.postMessage(
+      JSON.stringify({
+        type: 'setNavigationMode',
+        enabled: false,
+      })
+    );
+
+    // Restart continuous location tracking
+    continuousLocationSubscription.current = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        distanceInterval: 5,
+        timeInterval: 2000,
+      },
+      (newLocation) => {
+        setLocation(newLocation);
+        webViewRef.current?.postMessage(
+          JSON.stringify({
+            type: 'updateLocation',
+            latitude: newLocation.coords.latitude,
+            longitude: newLocation.coords.longitude,
+            follow: false,
+          })
+        );
+      }
+    );
   }, []);
 
   // Cleanup on unmount
@@ -600,6 +732,9 @@ export default function MapScreen() {
     return () => {
       if (locationSubscription.current) {
         locationSubscription.current.remove();
+      }
+      if (continuousLocationSubscription.current) {
+        continuousLocationSubscription.current.remove();
       }
     };
   }, []);
