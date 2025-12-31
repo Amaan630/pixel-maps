@@ -55,7 +55,7 @@ export const POI_CATEGORIES: POICategory[] = [
 
 // Icon set configuration
 export interface IconSetConfig {
-    name: "gta-v" | "san-andreas";
+    name: "gta-v" | "san-andreas" | "rdr2";
     icons: Partial<Record<POICategory, number>>; // require() returns number
 }
 
@@ -114,10 +114,37 @@ export const sanAndreasIcons: IconSetConfig = {
     },
 };
 
+// Red Dead Redemption 2 Icons (Western theme)
+export const rdr2Icons: IconSetConfig = {
+    name: "rdr2",
+    icons: {
+        gas_station: require("../assets/minimap-icons/rdr2/stable.png"),
+        restaurant: require("../assets/minimap-icons/rdr2/butcher.png"),
+        fast_food: require("../assets/minimap-icons/rdr2/saloon.png"),
+        cafe: require("../assets/minimap-icons/rdr2/saloon.png"),
+        bar: require("../assets/minimap-icons/rdr2/saloon.png"),
+        hospital: require("../assets/minimap-icons/rdr2/doctor.png"),
+        pharmacy: require("../assets/minimap-icons/rdr2/doctor.png"),
+        police: require("../assets/minimap-icons/rdr2/bounty.png"),
+        gym: require("../assets/minimap-icons/rdr2/swords.png"),
+        clothing: require("../assets/minimap-icons/rdr2/tailor.png"),
+        barber: require("../assets/minimap-icons/rdr2/barber.png"),
+        tattoo: require("../assets/minimap-icons/rdr2/barber.png"),
+        cinema: require("../assets/minimap-icons/rdr2/photo_studio.png"),
+        garage: require("../assets/minimap-icons/rdr2/stable.png"),
+        grocery: require("../assets/minimap-icons/rdr2/general_store.png"),
+        bank: require("../assets/minimap-icons/rdr2/coin.png"),
+        hotel: require("../assets/minimap-icons/rdr2/fast_travel.png"),
+        school: require("../assets/minimap-icons/rdr2/post_office.png"),
+        airport: require("../assets/minimap-icons/rdr2/trains.png"),
+        gun_shop: require("../assets/minimap-icons/rdr2/gunsmith.png"),
+    },
+};
+
 // Theme to icon set mapping
 export const themeIconSets: Record<ThemeName, IconSetConfig> = {
     "san-andreas": sanAndreasIcons,
-    western: gtaVIcons,
+    western: rdr2Icons,
     "los-angeles": gtaVIcons,
     cyberpunk: gtaVIcons,
 };
