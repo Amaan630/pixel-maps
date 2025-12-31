@@ -53,7 +53,7 @@
             [
                 "expo-location",
                 {
-                    "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to show your location on the pixel map."
+                    "locationWhenInUsePermission": "$(PRODUCT_NAME) uses your location to make the GPS work properly. Without it, we can't provide directions to your waypoints."
                 }
             ]
         ],
