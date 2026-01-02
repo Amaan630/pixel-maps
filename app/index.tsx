@@ -37,6 +37,77 @@ function haversineDistance(
   return R * c;
 }
 
+// Calculate perpendicular distance from a point to a line segment
+function pointToSegmentDistance(
+  point: [number, number],
+  segStart: [number, number],
+  segEnd: [number, number]
+): number {
+  const [px, py] = point;
+  const [x1, y1] = segStart;
+  const [x2, y2] = segEnd;
+
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const segLengthSquared = dx * dx + dy * dy;
+
+  if (segLengthSquared === 0) {
+    // Segment is a point
+    return haversineDistance(point, segStart);
+  }
+
+  // Project point onto segment line, clamped to [0, 1]
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / segLengthSquared));
+  const closestPoint: [number, number] = [x1 + t * dx, y1 + t * dy];
+
+  return haversineDistance(point, closestPoint);
+}
+
+// Find the index in routeCoords closest to a given point
+function findClosestCoordIndex(
+  point: [number, number],
+  routeCoords: [number, number][]
+): number {
+  let minDist = Infinity;
+  let minIndex = 0;
+  for (let i = 0; i < routeCoords.length; i++) {
+    const dist = haversineDistance(point, routeCoords[i]);
+    if (dist < minDist) {
+      minDist = dist;
+      minIndex = i;
+    }
+  }
+  return minIndex;
+}
+
+// Check distance to the route segment the user SHOULD be on
+// Based on current navigation step, not by searching the whole route
+function distanceToExpectedRoute(
+  userLocation: [number, number],
+  routeCoords: [number, number][],
+  prevManeuverLocation: [number, number] | null,
+  currentManeuverLocation: [number, number]
+): number {
+  // Find geometry indices for the segment we should be on
+  const startIndex = prevManeuverLocation
+    ? findClosestCoordIndex(prevManeuverLocation, routeCoords)
+    : 0;
+  const endIndex = findClosestCoordIndex(currentManeuverLocation, routeCoords);
+
+  // Add buffer of a few indices to account for GPS inaccuracy near turns
+  const bufferStart = Math.max(0, startIndex - 5);
+  const bufferEnd = Math.min(routeCoords.length - 1, endIndex + 5);
+
+  // Check distance to segments between start and end
+  let minDistance = Infinity;
+  for (let i = bufferStart; i < bufferEnd; i++) {
+    const dist = pointToSegmentDistance(userLocation, routeCoords[i], routeCoords[i + 1]);
+    minDistance = Math.min(minDistance, dist);
+  }
+
+  return minDistance;
+}
+
 // Calculate bearing from point A to point B (in degrees)
 function calculateBearing(
   [lon1, lat1]: [number, number],
@@ -62,7 +133,8 @@ function getMapHTML(
   longitude: number,
   mapStyleJSON: string,
   colors: { userLocation: string; route: string; charcoal: string },
-  locationMarkerIcon: string | null
+  locationMarkerIcon: string | null,
+  is3D: boolean
 ) {
   return `
 <!DOCTYPE html>
@@ -109,12 +181,16 @@ function getMapHTML(
   <div id="map"></div>
   <script>
     const mapStyle = ${mapStyleJSON};
+    const is3DTheme = ${is3D};
+    const defaultPitch = is3DTheme ? 45 : 0;
+    const navigationPitch = is3DTheme ? 60 : 0;
 
     const map = new maplibregl.Map({
       container: 'map',
       style: mapStyle,
       center: [${longitude}, ${latitude}],
       zoom: 15,
+      pitch: defaultPitch,
       attributionControl: false
     });
 
@@ -274,7 +350,7 @@ function getMapHTML(
             map.easeTo({
               center: currentUserLocation,
               bearing: data.bearing,
-              pitch: 60,
+              pitch: navigationPitch,
               zoom: 17.5,
               duration: 500
             });
@@ -289,14 +365,14 @@ function getMapHTML(
             // Enter navigation mode with tilted camera
             map.easeTo({
               center: currentUserLocation,
-              pitch: 60,
+              pitch: navigationPitch,
               zoom: 17.5,
               duration: 500
             });
           } else {
-            // Exit navigation mode - reset to flat view (but keep following compass)
+            // Exit navigation mode - reset to theme default view
             map.easeTo({
-              pitch: 0,
+              pitch: defaultPitch,
               zoom: 15,
               duration: 500
             });
@@ -305,9 +381,9 @@ function getMapHTML(
 
         if (data.type === 'recenter') {
           if (isNavigationMode) {
-            map.easeTo({ center: currentUserLocation, pitch: 60, zoom: 17.5, duration: 300 });
+            map.easeTo({ center: currentUserLocation, pitch: navigationPitch, zoom: 17.5, duration: 300 });
           } else {
-            map.flyTo({ center: currentUserLocation, zoom: 16 });
+            map.flyTo({ center: currentUserLocation, pitch: defaultPitch, zoom: 16 });
           }
         }
 
@@ -451,6 +527,8 @@ export default function MapScreen() {
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const continuousLocationSubscription = useRef<Location.LocationSubscription | null>(null);
   const handleSelectLocationRef = useRef<((result: GeocodingResult) => void) | null>(null);
+  const lastRerouteTime = useRef<number>(0);
+  const isRerouting = useRef<boolean>(false);
 
   // Voice navigation
   useVoiceNavigation({
@@ -771,7 +849,63 @@ export default function MapScreen() {
     if (distToManeuver < 30 && currentStepIndex < route.steps.length - 1) {
       setCurrentStepIndex((prev) => prev + 1);
     }
-  }, [isNavigating, route, location, currentStepIndex]);
+
+    // Auto-reroute: Check if user has deviated from the EXPECTED route segment
+    // (based on current step, not any random part of the route)
+    const routeCoords = route.geometry.coordinates as [number, number][];
+    const prevStep = currentStepIndex > 0 ? route.steps[currentStepIndex - 1] : null;
+    const distFromRoute = distanceToExpectedRoute(
+      userLocation,
+      routeCoords,
+      prevStep?.maneuver.location ?? null,
+      currentStep.maneuver.location
+    );
+
+    // Log for debugging (can remove later)
+    if (distFromRoute > 30) {
+      console.log(`[Reroute] Distance from expected route segment: ${distFromRoute.toFixed(0)}m (step ${currentStepIndex})`);
+    }
+
+    // If more than 50 meters off the expected route segment, trigger reroute
+    // Debounce: only reroute if more than 5 seconds since last reroute
+    const now = Date.now();
+    if (
+      distFromRoute > 50 &&
+      !isRerouting.current &&
+      now - lastRerouteTime.current > 5000 &&
+      destination
+    ) {
+      console.log(`[Reroute] Triggering reroute - ${distFromRoute.toFixed(0)}m off expected path`);
+      isRerouting.current = true;
+      lastRerouteTime.current = now;
+
+      // Reroute from current location to destination
+      (async () => {
+        try {
+          const newRoute = await getRoute(
+            userLocation,
+            [parseFloat(destination.lon), parseFloat(destination.lat)],
+            travelMode
+          );
+          console.log('[Reroute] New route received');
+          setRoute(newRoute);
+          setCurrentStepIndex(0);
+
+          // Send new route to WebView
+          webViewRef.current?.postMessage(
+            JSON.stringify({
+              type: 'setRoute',
+              geometry: newRoute.geometry,
+            })
+          );
+        } catch (e) {
+          console.error('[Reroute] Error:', e);
+        } finally {
+          isRerouting.current = false;
+        }
+      })();
+    }
+  }, [isNavigating, route, location, currentStepIndex, destination, travelMode]);
 
   // End active navigation
   const handleEndNavigation = useCallback(async () => {
@@ -865,7 +999,8 @@ export default function MapScreen() {
             initialLocation.current?.lng ?? -122.4324,
             theme.mapStyleJSON,
             colors,
-            locationMarkerIcon
+            locationMarkerIcon,
+            theme.is3D
           ),
         }}
         style={styles.map}

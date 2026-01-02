@@ -14,6 +14,7 @@ export interface Theme {
     fonts: typeof western.fonts;
     fontAssets: Record<string, number>; // Font assets can vary by theme
     mapStyleJSON: string;
+    is3D: boolean; // true = tilted 3D camera view, false = flat 2D view
 }
 
 export const themes: Record<ThemeName, Theme> = {
@@ -24,6 +25,7 @@ export const themes: Record<ThemeName, Theme> = {
         fonts: western.fonts,
         fontAssets: western.fontAssets,
         mapStyleJSON: western.mapStyleJSON,
+        is3D: false,
     },
     "los-angeles": {
         name: "los-angeles",
@@ -32,6 +34,7 @@ export const themes: Record<ThemeName, Theme> = {
         fonts: losAngeles.fonts,
         fontAssets: losAngeles.fontAssets,
         mapStyleJSON: losAngeles.mapStyleJSON,
+        is3D: false,
     },
     // 'toy-carpet': {
     //   name: 'toy-carpet',
@@ -48,6 +51,7 @@ export const themes: Record<ThemeName, Theme> = {
         fonts: cyberpunk.fonts,
         fontAssets: cyberpunk.fontAssets,
         mapStyleJSON: cyberpunk.mapStyleJSON,
+        is3D: true,
     },
     "san-andreas": {
         name: "san-andreas",
@@ -56,6 +60,7 @@ export const themes: Record<ThemeName, Theme> = {
         fonts: sanAndreas.fonts,
         fontAssets: sanAndreas.fontAssets,
         mapStyleJSON: sanAndreas.mapStyleJSON,
+        is3D: false,
     },
 };
 
