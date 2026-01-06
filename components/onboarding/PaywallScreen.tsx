@@ -5,12 +5,18 @@ import { useSubscription } from '../../contexts/SubscriptionContext';
 
 export function PaywallScreen() {
   const insets = useSafeAreaInsets();
-  const { presentPaywall, restorePurchases } = useSubscription();
+  const { presentPaywall, restorePurchases, isLoading } = useSubscription();
 
   useEffect(() => {
-    // Present paywall immediately when this screen mounts
-    presentPaywall();
-  }, [presentPaywall]);
+    if (isLoading) return;
+
+    // Delay to allow system dialogs (like location permission) to fully dismiss
+    const timeout = setTimeout(() => {
+      presentPaywall();
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [isLoading, presentPaywall]);
 
   return (
     <View style={styles.container}>

@@ -11,7 +11,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOnboarding } from '../../contexts/OnboardingContext';
-import { useSubscription } from '../../contexts/SubscriptionContext';
 import { OnboardingBackButton } from './OnboardingBackButton';
 import { OnboardingButton } from './OnboardingButton';
 import { OnboardingPage1 } from './OnboardingPage1';
@@ -32,7 +31,6 @@ export function OnboardingCarousel() {
   const insets = useSafeAreaInsets();
   const [currentPage, setCurrentPage] = useState(0);
   const { markOnboardingSeen } = useOnboarding();
-  const { presentPaywall } = useSubscription();
 
   // Use shared value for the current page index (for gesture handler)
   const currentPageShared = useSharedValue(0);
@@ -81,20 +79,19 @@ export function OnboardingCarousel() {
   }, []);
 
   const goToNextPage = useCallback(async () => {
-    // If we're on the last page (location page), check permission and present paywall
+    // If we're on the last page (location page), check permission and finish onboarding
     if (currentPage === LOCATION_PAGE) {
       const hasPermission = await checkAndRequestLocationPermission();
       if (!hasPermission) return;
 
-      // Mark onboarding as seen and present paywall
+      // Mark onboarding as seen - PaywallScreen will present the paywall when it mounts
       await markOnboardingSeen();
-      presentPaywall();
       return;
     }
 
     if (currentPage >= TOTAL_PAGES - 1) return;
     goToPage(currentPage + 1);
-  }, [currentPage, goToPage, checkAndRequestLocationPermission, markOnboardingSeen, presentPaywall]);
+  }, [currentPage, goToPage, checkAndRequestLocationPermission, markOnboardingSeen]);
 
   const goToPreviousPage = useCallback(() => {
     if (currentPage > 0) {
@@ -104,7 +101,7 @@ export function OnboardingCarousel() {
 
   // Handle swipe gesture trying to go forward from location page (last page)
   const handleSwipeEnd = useCallback(async () => {
-    // User is trying to swipe forward from the last page - check permission and present paywall
+    // User is trying to swipe forward from the last page - check permission and finish onboarding
     const hasPermission = await checkAndRequestLocationPermission();
     if (!hasPermission) {
       // Snap back to location page
@@ -112,10 +109,9 @@ export function OnboardingCarousel() {
       return;
     }
 
-    // Mark onboarding as seen and present paywall
+    // Mark onboarding as seen - PaywallScreen will present the paywall when it mounts
     await markOnboardingSeen();
-    presentPaywall();
-  }, [translateX, checkAndRequestLocationPermission, markOnboardingSeen, presentPaywall]);
+  }, [translateX, checkAndRequestLocationPermission, markOnboardingSeen]);
 
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])

@@ -40,8 +40,11 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
           await Purchases.configure({ apiKey });
         }
 
-        // Get initial customer info
-        await refreshSubscriptionStatus();
+        // Wait for both customer info AND offerings to load
+        await Promise.all([
+          refreshSubscriptionStatus(),
+          Purchases.getOfferings(),
+        ]);
       } catch (error) {
         console.error('Failed to initialize RevenueCat:', error);
       } finally {
