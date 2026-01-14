@@ -1,8 +1,12 @@
-import { Dimensions, Image, StyleSheet, Text, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SCREENSHOT_WIDTH = SCREEN_WIDTH * 0.55;
 const SCREENSHOT_HEIGHT = SCREENSHOT_WIDTH * 1.8;
+
+const PRIVACY_URL = 'https://syntak.co/pixel-maps/privacy-policy';
+const TERMS_URL = 'https://syntak.co/pixel-maps/terms-and-conditions';
 
 export function OnboardingPage1() {
   return (
@@ -35,6 +39,16 @@ export function OnboardingPage1() {
         <Text style={styles.subtitle}>
           Find your favorite game and quickly apply to your real life map!
         </Text>
+      </View>
+
+      <View style={styles.linksContainer}>
+        <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL)}>
+          <Text style={styles.link}>Privacy Policy</Text>
+        </TouchableOpacity>
+        <Text style={styles.linkSeparator}>|</Text>
+        <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(TERMS_URL)}>
+          <Text style={styles.link}>Terms & Conditions</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -92,5 +106,20 @@ const styles = StyleSheet.create({
     color: '#999999',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  linksContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  link: {
+    fontSize: 13,
+    color: '#999999',
+    textDecorationLine: 'underline',
+  },
+  linkSeparator: {
+    fontSize: 13,
+    color: '#999999',
+    marginHorizontal: 12,
   },
 });

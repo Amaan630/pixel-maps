@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { MapPin, Navigation, X } from 'lucide-react-native';
 import { useCallback, useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { POICategory } from '../config/poiIcons';
 import { useTheme } from '../contexts/ThemeContext';
@@ -41,9 +41,9 @@ export function POISheet({ poi, onClose, onSetWaypoint }: Props) {
 
   useEffect(() => {
     if (poi) {
-      translateY.value = withSpring(0, {
-        damping: 20,
-        stiffness: 300,
+      translateY.value = withTiming(0, {
+        duration: 250,
+        easing: Easing.out(Easing.cubic),
       });
     }
   }, [poi]);

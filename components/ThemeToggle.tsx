@@ -1,5 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CircleHelp } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   Modal,
@@ -11,11 +12,13 @@ import {
 } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { ThemeName, themeNames, themes } from '../themes';
+import { HelpSheet } from './HelpSheet';
 
 export function ThemeToggle() {
   const { theme, themeName, setTheme } = useTheme();
   const { fonts } = theme;
   const [expanded, setExpanded] = useState(false);
+  const [helpVisible, setHelpVisible] = useState(false);
 
   const displayName = themes[themeName].displayName.toUpperCase();
 
@@ -33,17 +36,28 @@ export function ThemeToggle() {
           colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.3)', 'transparent']}
           style={styles.gradient}
         />
-        <TouchableOpacity
-          style={styles.headerContent}
-          onPress={() => setExpanded(true)}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.themeTitle, { fontFamily: fonts.display }]}>
-            {displayName}
-          </Text>
-          <Text style={styles.chevron}>▼</Text>
-        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.themeButton}
+            onPress={() => setExpanded(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.themeTitle, { fontFamily: fonts.display }]}>
+              {displayName}
+            </Text>
+            <Text style={styles.chevron}>▼</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.helpButton}
+            onPress={() => setHelpVisible(true)}
+            activeOpacity={0.8}
+          >
+            <CircleHelp size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <HelpSheet visible={helpVisible} onClose={() => setHelpVisible(false)} />
 
       {/* Expanded overlay modal */}
       <Modal
@@ -104,10 +118,17 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 20,
+  },
+  themeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  helpButton: {
+    padding: 4,
   },
   themeTitle: {
     fontSize: 28,

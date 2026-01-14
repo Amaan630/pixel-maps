@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import { useCallback, useState } from 'react';
-import { Alert, Dimensions, Linking, StyleSheet, View } from 'react-native';
+import { Dimensions, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -50,39 +50,23 @@ export function OnboardingCarousel() {
     [translateX, currentPageShared, updateCurrentPage]
   );
 
-  const checkAndRequestLocationPermission = useCallback(async (): Promise<boolean> => {
+  const requestLocationPermission = useCallback(async () => {
     // First check current status
     const { status: currentStatus } = await Location.getForegroundPermissionsAsync();
 
     if (currentStatus === 'granted') {
-      return true;
+      return;
     }
 
-    // Request permission
-    const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
-
-    if (newStatus === 'granted') {
-      return true;
-    }
-
-    // Permission denied - show alert
-    Alert.alert(
-      'Location Permission Required',
-      'Game Maps IRL needs location access to work. Please enable location permissions in Settings.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Open Settings', onPress: () => Linking.openSettings() },
-      ]
-    );
-
-    return false;
+    // Request permission (but don't block if denied)
+    await Location.requestForegroundPermissionsAsync();
   }, []);
 
   const goToNextPage = useCallback(async () => {
-    // If we're on the last page (location page), check permission and finish onboarding
+    // If we're on the last page (location page), request permission and finish onboarding
     if (currentPage === LOCATION_PAGE) {
-      const hasPermission = await checkAndRequestLocationPermission();
-      if (!hasPermission) return;
+      // Request permission (but don't block if denied - app works without it)
+      await requestLocationPermission();
 
       // Mark onboarding as seen - PaywallScreen will present the paywall when it mounts
       await markOnboardingSeen();
@@ -91,7 +75,7 @@ export function OnboardingCarousel() {
 
     if (currentPage >= TOTAL_PAGES - 1) return;
     goToPage(currentPage + 1);
-  }, [currentPage, goToPage, checkAndRequestLocationPermission, markOnboardingSeen]);
+  }, [currentPage, goToPage, requestLocationPermission, markOnboardingSeen]);
 
   const goToPreviousPage = useCallback(() => {
     if (currentPage > 0) {
@@ -101,17 +85,12 @@ export function OnboardingCarousel() {
 
   // Handle swipe gesture trying to go forward from location page (last page)
   const handleSwipeEnd = useCallback(async () => {
-    // User is trying to swipe forward from the last page - check permission and finish onboarding
-    const hasPermission = await checkAndRequestLocationPermission();
-    if (!hasPermission) {
-      // Snap back to location page
-      translateX.value = withTiming(-LOCATION_PAGE * SCREEN_WIDTH, TIMING_CONFIG);
-      return;
-    }
+    // Request permission (but don't block if denied - app works without it)
+    await requestLocationPermission();
 
     // Mark onboarding as seen - PaywallScreen will present the paywall when it mounts
     await markOnboardingSeen();
-  }, [translateX, checkAndRequestLocationPermission, markOnboardingSeen]);
+  }, [requestLocationPermission, markOnboardingSeen]);
 
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])

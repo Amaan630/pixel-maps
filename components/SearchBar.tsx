@@ -162,12 +162,12 @@ export function SearchBar({ onSelectLocation, onClear, userLocation }: Props) {
           </View>
         )}
 
-        {results.length > 0 && !hasSelection && (
+        {isFocused && results.length > 0 && !hasSelection && (
           <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
             <FlatList
               style={styles.results}
               data={results}
-              keyExtractor={(item) => item.place_id.toString()}
+              keyExtractor={(item, index) => `${item.place_id}-${index}`}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               renderItem={({ item }) => (

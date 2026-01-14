@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Linking, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { DirectionsPanel } from '../components/DirectionsPanel';
@@ -506,7 +506,7 @@ export default function MapScreen() {
   const { colors } = theme;
 
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [loading, setLoading] = useState(true);
   const webViewRef = useRef<WebView>(null);
 
@@ -626,11 +626,15 @@ export default function MapScreen() {
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
+
       if (status !== 'granted') {
-        setError('Location permission denied');
+        // No location permission - app still works, just without location features
+        setHasLocationPermission(false);
         setLoading(false);
         return;
       }
+
+      setHasLocationPermission(true);
 
       const loc = await Location.getCurrentPositionAsync({});
       setLocation(loc);
@@ -677,6 +681,54 @@ export default function MapScreen() {
     };
   }, []);
 
+  // Re-check location permission when app returns to foreground (e.g., after Settings)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'active' && !hasLocationPermission) {
+        // Check if permission was granted while away
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status === 'granted') {
+          setHasLocationPermission(true);
+          // Get current location now that we have permission
+          try {
+            const loc = await Location.getCurrentPositionAsync({});
+            setLocation(loc);
+            if (!initialLocation.current) {
+              initialLocation.current = {
+                lat: loc.coords.latitude,
+                lng: loc.coords.longitude,
+              };
+            }
+            // Start continuous location tracking
+            continuousLocationSubscription.current = await Location.watchPositionAsync(
+              {
+                accuracy: Location.Accuracy.High,
+                distanceInterval: 5,
+                timeInterval: 2000,
+              },
+              (newLocation) => {
+                setLocation(newLocation);
+                webViewRef.current?.postMessage(
+                  JSON.stringify({
+                    type: 'updateLocation',
+                    latitude: newLocation.coords.latitude,
+                    longitude: newLocation.coords.longitude,
+                    heading: newLocation.coords.heading,
+                    follow: false,
+                  })
+                );
+              }
+            );
+          } catch (e) {
+            console.error('Error getting location:', e);
+          }
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, [hasLocationPermission]);
+
   // Handle destination selection from search
   const handleSelectLocation = async (result: GeocodingResult) => {
     setDestination(result);
@@ -692,26 +744,40 @@ export default function MapScreen() {
     );
 
     // Get route from current location to destination
-    if (location) {
-      try {
-        const routeData = await getRoute(
-          [location.coords.longitude, location.coords.latitude],
-          [parseFloat(result.lon), parseFloat(result.lat)],
-          travelMode
-        );
-        setRoute(routeData);
+    if (!location || !hasLocationPermission) {
+      // No location - can't calculate route
+      setRouteLoading(false);
+      setDestination(null);
+      webViewRef.current?.postMessage(JSON.stringify({ type: 'clearRoute' }));
+      Alert.alert(
+        'Location Required',
+        'Navigation requires location access to calculate a route from your current position. Please enable location services in Settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
+      return;
+    }
 
-        // Send route to WebView
-        webViewRef.current?.postMessage(
-          JSON.stringify({
-            type: 'setRoute',
-            geometry: routeData.geometry,
-          })
-        );
-      } catch (e) {
-        console.error('Routing error:', e);
-        setRoute(null);
-      }
+    try {
+      const routeData = await getRoute(
+        [location.coords.longitude, location.coords.latitude],
+        [parseFloat(result.lon), parseFloat(result.lat)],
+        travelMode
+      );
+      setRoute(routeData);
+
+      // Send route to WebView
+      webViewRef.current?.postMessage(
+        JSON.stringify({
+          type: 'setRoute',
+          geometry: routeData.geometry,
+        })
+      );
+    } catch (e) {
+      console.error('Routing error:', e);
+      setRoute(null);
     }
     setRouteLoading(false);
   };
@@ -778,6 +844,19 @@ export default function MapScreen() {
   const handleStartNavigation = useCallback(async () => {
     if (!route || route.steps.length === 0) return;
 
+    // Check if we have location permission
+    if (!hasLocationPermission || !location) {
+      Alert.alert(
+        'Location Required',
+        'Turn-by-turn navigation requires location access. Please enable location services in Settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
+      return;
+    }
+
     setIsNavigating(true);
     setCurrentStepIndex(0);
 
@@ -816,7 +895,7 @@ export default function MapScreen() {
         setLocation(newLocation);
       }
     );
-  }, [route, location]);
+  }, [route, location, hasLocationPermission]);
 
   // Update step advancement and map when location changes during navigation
   useEffect(() => {
@@ -973,16 +1052,8 @@ export default function MapScreen() {
       <View style={[styles.centered, { backgroundColor: colors.parchment }]}>
         <ActivityIndicator size="large" color={colors.charcoal} />
         <Text style={[styles.loadingText, { color: colors.charcoal }]}>
-          Getting your location...
+          Loading map...
         </Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[styles.centered, { backgroundColor: colors.parchment }]}>
-        <Text style={[styles.errorText, { color: colors.charcoal }]}>{error}</Text>
       </View>
     );
   }
@@ -1026,8 +1097,10 @@ export default function MapScreen() {
         />
       )}
 
-      {/* Recenter button (hidden during navigation and when route panel is shown) */}
-      {!isNavigating && !route && <RecenterButton onPress={handleRecenter} />}
+      {/* Recenter button (hidden during navigation, when route panel is shown, or when no location) */}
+      {!isNavigating && !route && hasLocationPermission && (
+        <RecenterButton onPress={handleRecenter} />
+      )}
 
       {/* Mode selector (shown when destination is selected, not during navigation) */}
       {destination && !route && !isNavigating && (
@@ -1109,11 +1182,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    textAlign: 'center',
-    padding: 20,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

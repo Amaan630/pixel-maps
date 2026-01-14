@@ -15,10 +15,10 @@ export function OnboardingPage3() {
       </View>
 
       <View style={styles.textContainer}>
-        <Text style={styles.title}>Allow Location Access for Game Maps IRL</Text>
+        <Text style={styles.title}>Enable Location for Navigation</Text>
         <Text style={styles.subtitle}>
-          Game Maps IRL uses your location to provide you with the best experience. Please allow
-          location access to continue.
+          Location access enables turn-by-turn navigation and shows your position on the map. You
+          can still browse maps without it.
         </Text>
       </View>
     </View>
