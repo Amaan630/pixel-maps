@@ -21,6 +21,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
+  const [isPurchasing, setIsPurchasing] = useState(false);
 
   // Initialize RevenueCat
   useEffect(() => {
@@ -55,17 +56,17 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     initializePurchases();
   }, []);
 
-  // Refresh subscription status when app comes to foreground
+  // Refresh subscription status when app comes to foreground (but not during purchase)
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
+      if (nextAppState === 'active' && !isPurchasing) {
         refreshSubscriptionStatus();
       }
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
-  }, []);
+  }, [isPurchasing]);
 
   // Listen for customer info updates
   useEffect(() => {
@@ -99,6 +100,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   const presentPaywall = useCallback(async (): Promise<boolean> => {
     try {
+      setIsPurchasing(true);
       const paywallResult = await RevenueCatUI.presentPaywall();
 
       switch (paywallResult) {
@@ -115,11 +117,14 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to present paywall:', error);
       return false;
+    } finally {
+      setIsPurchasing(false);
     }
   }, [refreshSubscriptionStatus]);
 
   const restorePurchases = useCallback(async (): Promise<boolean> => {
     try {
+      setIsPurchasing(true);
       const info = await Purchases.restorePurchases();
       setCustomerInfo(info);
       checkEntitlement(info);
@@ -127,6 +132,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to restore purchases:', error);
       return false;
+    } finally {
+      setIsPurchasing(false);
     }
   }, []);
 

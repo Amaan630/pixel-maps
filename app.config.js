@@ -1,75 +1,75 @@
-import 'dotenv/config';
+import "dotenv/config";
 
 export default {
-  expo: {
-    name: 'Pixel Maps',
-    slug: 'pixel-maps',
-    version: '1.0.0',
-    orientation: 'portrait',
-    icon: './assets/images/icon.png',
-    scheme: 'pixelmaps',
-    userInterfaceStyle: 'automatic',
-    newArchEnabled: true,
-    ios: {
-      supportsTablet: true,
-      bundleIdentifier: 'com.amaanali.pixelmaps',
-      infoPlist: {
-        ITSAppUsesNonExemptEncryption: false,
-      },
-    },
-    android: {
-      adaptiveIcon: {
-        backgroundColor: '#979898',
-        foregroundImage: './assets/images/android-icon-foreground.png',
-        backgroundImage: './assets/images/android-icon-background.png',
-        monochromeImage: './assets/images/android-icon-monochrome.png',
-      },
-      edgeToEdgeEnabled: true,
-      predictiveBackGestureEnabled: false,
-      config: {
-        googleMaps: {
-          apiKey: 'YOUR_GOOGLE_MAPS_API_KEY',
+    expo: {
+        name: "Pixel Maps",
+        slug: "pixel-maps",
+        version: "1.0.0",
+        orientation: "portrait",
+        icon: "./assets/images/icon.png",
+        scheme: "pixelmaps",
+        userInterfaceStyle: "automatic",
+        newArchEnabled: true,
+        ios: {
+            supportsTablet: true,
+            bundleIdentifier: "com.amaanali.pixelmaps",
+            infoPlist: {
+                ITSAppUsesNonExemptEncryption: false,
+            },
         },
-      },
-      permissions: [
-        'android.permission.ACCESS_COARSE_LOCATION',
-        'android.permission.ACCESS_FINE_LOCATION',
-      ],
-      package: 'com.amaanali.pixelmaps',
-    },
-    web: {
-      output: 'static',
-      favicon: './assets/images/favicon.png',
-    },
-    plugins: [
-      'expo-router',
-      [
-        'expo-splash-screen',
-        {
-          image: './assets/images/splash-icon.png',
-          imageWidth: 200,
-          resizeMode: 'contain',
-          backgroundColor: '#979898',
+        android: {
+            adaptiveIcon: {
+                backgroundColor: "#979898",
+                foregroundImage: "./assets/images/android-icon-foreground.png",
+                backgroundImage: "./assets/images/android-icon-background.png",
+                monochromeImage: "./assets/images/android-icon-monochrome.png",
+            },
+            edgeToEdgeEnabled: true,
+            predictiveBackGestureEnabled: false,
+            config: {
+                googleMaps: {
+                    apiKey: "YOUR_GOOGLE_MAPS_API_KEY",
+                },
+            },
+            permissions: [
+                "android.permission.ACCESS_COARSE_LOCATION",
+                "android.permission.ACCESS_FINE_LOCATION",
+            ],
+            package: "com.amaanali.pixelmaps",
         },
-      ],
-      [
-        'expo-location',
-        {
-          locationWhenInUsePermission:
-            'Allow $(PRODUCT_NAME) to show your location on the pixel map.',
+        web: {
+            output: "static",
+            favicon: "./assets/images/favicon.png",
         },
-      ],
-    ],
-    experiments: {
-      typedRoutes: true,
-      reactCompiler: true,
+        plugins: [
+            "expo-router",
+            [
+                "expo-splash-screen",
+                {
+                    image: "./assets/images/splash-icon.png",
+                    imageWidth: 200,
+                    resizeMode: "contain",
+                    backgroundColor: "#979898",
+                },
+            ],
+            [
+                "expo-location",
+                {
+                    locationWhenInUsePermission:
+                        "Allow $(PRODUCT_NAME) to show your location on the pixel map.",
+                },
+            ],
+        ],
+        experiments: {
+            typedRoutes: true,
+            reactCompiler: true,
+        },
+        extra: {
+            router: {},
+            eas: {
+                projectId: "623aeeec-fcc9-4066-b402-2cd9ee31e6be",
+            },
+            revenueCatApiKey: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY,
+        },
     },
-    extra: {
-      router: {},
-      eas: {
-        projectId: '623aeeec-fcc9-4066-b402-2cd9ee31e6be',
-      },
-      revenueCatApiKey: process.env.REVENUECAT_API_KEY,
-    },
-  },
 };
