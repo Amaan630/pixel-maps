@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CircleHelp } from 'lucide-react-native';
+import { CircleHelp, Settings } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   Modal,
@@ -10,15 +10,22 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSettings } from '../contexts/SettingsContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { ThemeName, themeNames, themes } from '../themes';
 import { HelpSheet } from './HelpSheet';
 
 export function ThemeToggle() {
   const { theme, themeName, setTheme } = useTheme();
+  const { setSettingsVisible } = useSettings();
   const { fonts } = theme;
   const [expanded, setExpanded] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
+
+  const handleOpenSettings = () => {
+    Haptics.selectionAsync();
+    setSettingsVisible(true);
+  };
 
   const displayName = themes[themeName].displayName.toUpperCase();
 
@@ -47,13 +54,22 @@ export function ThemeToggle() {
             </Text>
             <Text style={styles.chevron}>▼</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.helpButton}
-            onPress={() => setHelpVisible(true)}
-            activeOpacity={0.8}
-          >
-            <CircleHelp size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={styles.iconButtons}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleOpenSettings}
+              activeOpacity={0.8}
+            >
+              <Settings size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => setHelpVisible(true)}
+              activeOpacity={0.8}
+            >
+              <CircleHelp size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -127,7 +143,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  helpButton: {
+  iconButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconButton: {
     padding: 4,
   },
   themeTitle: {
