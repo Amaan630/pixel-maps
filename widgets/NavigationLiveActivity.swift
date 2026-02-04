@@ -10,7 +10,9 @@ struct NavigationLiveActivity: Widget {
             LockScreenView(context: context)
         } dynamicIsland: { context in
             let theme = LiveActivityTheme.forName(context.attributes.themeName)
-            let accentColor = Color(hex: theme.routeColor)
+            let accentColor = Color(hex: theme.accentColor)
+            let primaryTextColor = Color(hex: theme.islandPrimaryTextColor)
+            let secondaryTextColor = Color(hex: theme.islandSecondaryTextColor)
 
             return DynamicIsland {
                 // Expanded Dynamic Island
@@ -20,52 +22,25 @@ struct NavigationLiveActivity: Widget {
                         modifier: context.state.maneuverModifier,
                         color: accentColor
                     )
-                    .frame(width: 44, height: 44)
-                }
-
-                DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(formatDistance(context.state.distanceToManeuver))
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white)
-                        Text("to turn")
-                            .font(.caption2)
-                            .foregroundColor(.gray)
-                    }
+                    .frame(width: 56, height: 56)
                 }
 
                 DynamicIslandExpandedRegion(.center) {
-                    Text(context.state.instruction)
-                        .font(.system(size: 14, weight: .medium))
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(.white)
-                }
-
-                DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(formatDistance(context.state.remainingDistance))
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            Text("remaining")
-                                .font(.caption2)
-                                .foregroundColor(.gray)
-                        }
-
-                        Spacer()
-
-                        VStack(alignment: .trailing) {
-                            Text(context.state.eta, style: .time)
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            Text("ETA")
-                                .font(.caption2)
-                                .foregroundColor(.gray)
-                        }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(formatDistance(context.state.distanceToManeuver))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(secondaryTextColor)
+                        Text(context.state.instruction)
+                            .font(.system(size: 19, weight: .semibold))
+                            .lineLimit(1)
+                            .foregroundColor(primaryTextColor)
+                        Text(context.state.eta, style: .time)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(secondaryTextColor)
                     }
-                    .padding(.horizontal, 8)
                 }
+
+                DynamicIslandExpandedRegion(.trailing) { EmptyView() }
             } compactLeading: {
                 // Compact view - left pill
                 DirectionArrowView(
@@ -104,7 +79,15 @@ struct LockScreenView: View {
     }
 
     var accentColor: Color {
-        Color(hex: theme.routeColor)
+        Color(hex: theme.accentColor)
+    }
+
+    var primaryTextColor: Color {
+        Color(hex: theme.primaryTextColor)
+    }
+
+    var secondaryTextColor: Color {
+        Color(hex: theme.secondaryTextColor)
     }
 
     var body: some View {
@@ -118,26 +101,26 @@ struct LockScreenView: View {
                 .frame(width: 48, height: 48)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(context.state.instruction)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .lineLimit(2)
-
                     Text(formatDistance(context.state.distanceToManeuver))
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(accentColor)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(secondaryTextColor)
+
+                    Text(context.state.instruction)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(primaryTextColor)
+                        .lineLimit(2)
                 }
 
                 Spacer()
             }
 
             Divider()
-                .background(Color.gray.opacity(0.3))
+                .background(secondaryTextColor.opacity(0.3))
 
             HStack {
                 Label(context.attributes.destinationName, systemImage: "mappin.circle.fill")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(secondaryTextColor)
                     .lineLimit(1)
 
                 Spacer()
@@ -147,24 +130,28 @@ struct LockScreenView: View {
                         Text(formatDistance(context.state.remainingDistance))
                             .font(.caption)
                             .fontWeight(.medium)
+                            .foregroundColor(primaryTextColor)
                         Text("left")
                             .font(.caption2)
-                            .foregroundColor(.gray)
+                            .foregroundColor(secondaryTextColor)
                     }
 
                     VStack(alignment: .trailing) {
                         Text(context.state.eta, style: .time)
                             .font(.caption)
                             .fontWeight(.medium)
+                            .foregroundColor(primaryTextColor)
                         Text("ETA")
                             .font(.caption2)
-                            .foregroundColor(.gray)
+                            .foregroundColor(secondaryTextColor)
                     }
                 }
             }
         }
         .padding(16)
-        .background(Color.black)
+        .background(Color(hex: theme.backgroundColor))
+        .activityBackgroundTint(Color(hex: theme.backgroundColor))
+        .activitySystemActionForegroundColor(primaryTextColor)
         .widgetURL(URL(string: context.attributes.deepLinkURL))
     }
 }
