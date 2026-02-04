@@ -15,6 +15,8 @@ export default {
             bundleIdentifier: "com.amaanali.pixelmaps",
             infoPlist: {
                 ITSAppUsesNonExemptEncryption: false,
+                NSSupportsLiveActivities: true,
+                NSSupportsLiveActivitiesFrequentUpdates: true,
             },
         },
         android: {
@@ -57,6 +59,14 @@ export default {
                 {
                     locationWhenInUsePermission:
                         "Allow $(PRODUCT_NAME) to show your location on the pixel map.",
+                },
+            ],
+            [
+                "react-native-widget-extension",
+                {
+                    frequentUpdates: true,
+                    widgetsFolder: "widgets",
+                    deploymentTarget: "16.2",
                 },
             ],
         ],

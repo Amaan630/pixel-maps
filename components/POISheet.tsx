@@ -1,13 +1,11 @@
 import * as Haptics from 'expo-haptics';
-import { MapPin, Navigation, X } from 'lucide-react-native';
-import { useCallback, useEffect } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MapPin, Navigation } from 'lucide-react-native';
+import { useCallback } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { POICategory } from '../config/poiIcons';
 import { useTheme } from '../contexts/ThemeContext';
-
-const SHEET_HEIGHT = 220; // Approximate sheet height
+import { usePOIIcons } from '../hooks/usePOIIcons';
+import { UndraggableSheet } from './UndraggableSheet';
 
 interface POIData {
   id: string;
@@ -23,7 +21,6 @@ interface Props {
   onSetWaypoint: (poi: POIData) => void;
 }
 
-// Format category name for display
 function formatCategory(category: POICategory): string {
   return category
     .split('_')
@@ -32,25 +29,9 @@ function formatCategory(category: POICategory): string {
 }
 
 export function POISheet({ poi, onClose, onSetWaypoint }: Props) {
-  const { theme } = useTheme();
+  const { theme, themeName } = useTheme();
   const { colors, fonts } = theme;
-  const insets = useSafeAreaInsets();
-
-  // Animation for slide-up effect
-  const translateY = useSharedValue(SHEET_HEIGHT);
-
-  useEffect(() => {
-    if (poi) {
-      translateY.value = withTiming(0, {
-        duration: 250,
-        easing: Easing.out(Easing.cubic),
-      });
-    }
-  }, [poi]);
-
-  const animatedSheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const { icons } = usePOIIcons(themeName);
 
   const handleSetWaypoint = useCallback(() => {
     if (!poi) return;
@@ -63,102 +44,45 @@ export function POISheet({ poi, onClose, onSetWaypoint }: Props) {
 
   const displayName = poi.name || formatCategory(poi.category);
   const displayCategory = formatCategory(poi.category);
+  const iconUri = icons[poi.category];
 
   return (
-    <Modal
-      visible={true}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Animated.View style={[styles.sheet, { backgroundColor: colors.parchment, paddingBottom: insets.bottom + 16 }, animatedSheetStyle]}>
-          {/* Touch interceptor to prevent closing when tapping sheet */}
-          <Pressable>
-            {/* Handle indicator */}
-            {/* <View style={[styles.handleIndicator, { backgroundColor: colors.charcoal }]} /> */}
+    <UndraggableSheet visible={!!poi} onClose={onClose}>
+      {/* POI Info */}
+      <View style={styles.infoSection}>
+        <View style={[styles.iconContainer, { backgroundColor: colors.building }]}>
+          {iconUri ? (
+            <Image source={{ uri: iconUri }} style={styles.poiIcon} resizeMode="contain" />
+          ) : (
+            <MapPin size={24} color={colors.route} />
+          )}
+        </View>
+        <View style={styles.textContainer}>
+          <Text
+            style={[styles.poiName, { color: colors.charcoal, fontFamily: fonts.display }]}
+            numberOfLines={2}
+          >
+            {displayName}
+          </Text>
+          <Text style={[styles.poiCategory, { color: colors.mutedBrown }]}>{displayCategory}</Text>
+        </View>
+      </View>
 
-            {/* Close button */}
-            <TouchableOpacity
-              style={[styles.closeButton, { backgroundColor: colors.building }]}
-              onPress={onClose}
-            >
-              <X size={20} color={colors.charcoal} />
-            </TouchableOpacity>
-
-            {/* POI Info */}
-            <View style={styles.infoSection}>
-              <View style={styles.iconContainer}>
-                <MapPin size={24} color={colors.route} />
-              </View>
-              <View style={styles.textContainer}>
-                <Text
-                  style={[styles.poiName, { color: colors.charcoal, fontFamily: fonts.display }]}
-                  numberOfLines={2}
-                >
-                  {displayName}
-                </Text>
-                <Text style={[styles.poiCategory, { color: colors.mutedBrown }]}>
-                  {displayCategory}
-                </Text>
-              </View>
-            </View>
-
-            {/* Set Waypoint Button */}
-            <TouchableOpacity
-              style={[styles.waypointButton, { backgroundColor: colors.route }]}
-              onPress={handleSetWaypoint}
-            >
-              <Navigation size={20} color={colors.parchment} />
-              <Text
-                style={[styles.waypointButtonText, { color: colors.parchment, fontFamily: fonts.display }]}
-              >
-                Set Waypoint
-              </Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Animated.View>
-      </Pressable>
-    </Modal>
+      {/* Set Waypoint Button */}
+      <TouchableOpacity
+        style={[styles.waypointButton, { backgroundColor: colors.route }]}
+        onPress={handleSetWaypoint}
+      >
+        <Navigation size={20} color={colors.parchment} />
+        <Text style={[styles.waypointButtonText, { color: colors.parchment, fontFamily: fonts.display }]}>
+          Set Waypoint
+        </Text>
+      </TouchableOpacity>
+    </UndraggableSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  handleIndicator: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 16,
-    opacity: 0.5,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 12,
-    right: 20,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
   infoSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,11 +91,14 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
+  },
+  poiIcon: {
+    width: 32,
+    height: 32,
   },
   textContainer: {
     flex: 1,

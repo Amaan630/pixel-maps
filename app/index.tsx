@@ -13,6 +13,7 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLocationMarkerIcon } from '../hooks/useLocationMarkerIcon';
 import { usePOIIcons } from '../hooks/usePOIIcons';
+import { useLiveActivity } from '../hooks/useLiveActivity';
 import { useVoiceNavigation } from '../hooks/useVoiceNavigation';
 import { GeocodingResult } from '../services/geocoding';
 import { fetchPOIs, MapBounds, POI } from '../services/poi';
@@ -491,6 +492,7 @@ function getMapHTML(
           }
           poiMarkers.clear();
         }
+
       } catch (e) {
         console.error('Message handling error:', e);
       }
@@ -537,6 +539,21 @@ export default function MapScreen() {
     currentStep: route?.steps[currentStepIndex] ?? null,
     distanceToNextManeuver,
     isMuted: voiceMuted,
+  });
+
+  // Live Activity for iOS navigation (Dynamic Island + Lock Screen)
+  useLiveActivity({
+    isNavigating,
+    currentStep: route?.steps[currentStepIndex] ?? null,
+    distanceToNextManeuver,
+    remainingDistance: route
+      ? route.steps.slice(currentStepIndex).reduce((sum, step) => sum + step.distance, 0)
+      : 0,
+    remainingDuration: route
+      ? route.steps.slice(currentStepIndex).reduce((sum, step) => sum + step.duration, 0)
+      : 0,
+    destinationName: destination?.display_name ?? 'Destination',
+    themeName,
   });
 
   // POI state
