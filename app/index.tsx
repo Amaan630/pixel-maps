@@ -4,12 +4,15 @@ import { ActivityIndicator, Alert, AppState, Linking, StyleSheet, Text, View } f
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { DirectionsPanel } from '../components/DirectionsPanel';
+import { MiniMapOverlay } from '../components/MiniMapOverlay';
 import { ModeSelector } from '../components/ModeSelector';
 import { NavigationView } from '../components/NavigationView';
 import { POISheet } from '../components/POISheet';
 import { RecenterButton } from '../components/RecenterButton';
 import { SearchBar } from '../components/SearchBar';
+import { SettingsReveal } from '../components/SettingsReveal';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { useSettings } from '../contexts/SettingsContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLocationMarkerIcon } from '../hooks/useLocationMarkerIcon';
 import { usePOIIcons } from '../hooks/usePOIIcons';
@@ -336,6 +339,7 @@ function getMapHTML(
 
     // Navigation mode state
     let isNavigationMode = false;
+    let isMiniMapMode = false;
 
     // Handle messages from React Native
     window.addEventListener('message', (event) => {
@@ -493,6 +497,58 @@ function getMapHTML(
           poiMarkers.clear();
         }
 
+        if (data.type === 'setMiniMapMode') {
+          isMiniMapMode = data.enabled;
+          if (data.enabled) {
+            // Disable all map interactions for mini-map mode
+            map.dragPan.disable();
+            map.scrollZoom.disable();
+            map.doubleClickZoom.disable();
+            map.touchZoomRotate.disable();
+            map.keyboard.disable();
+            // Center and zoom for mini-map view
+            map.easeTo({
+              center: currentUserLocation,
+              zoom: 17.5,
+              pitch: 0,
+              duration: 300
+            });
+          } else {
+            // Re-enable map interactions
+            map.dragPan.enable();
+            map.scrollZoom.enable();
+            map.doubleClickZoom.enable();
+            map.touchZoomRotate.enable();
+            map.keyboard.enable();
+            // Reset to default view
+            map.easeTo({
+              pitch: defaultPitch,
+              zoom: 15,
+              duration: 300
+            });
+          }
+        }
+
+        if (data.type === 'updateMiniMapLocation') {
+          // Update location and rotate map to follow heading in mini-map mode
+          currentUserLocation = [data.longitude, data.latitude];
+          userMarker.setLngLat(currentUserLocation);
+          map.easeTo({
+            center: currentUserLocation,
+            bearing: data.bearing || 0,
+            duration: 0
+          });
+        }
+
+        if (data.type === 'setMiniMapZoom') {
+          if (isMiniMapMode) {
+            map.easeTo({
+              zoom: data.zoom,
+              duration: 0
+            });
+          }
+        }
+
       } catch (e) {
         console.error('Message handling error:', e);
       }
@@ -506,6 +562,7 @@ function getMapHTML(
 export default function MapScreen() {
   const { theme, themeName } = useTheme();
   const { colors } = theme;
+  const { miniMapMode } = useSettings();
 
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
@@ -526,8 +583,20 @@ export default function MapScreen() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [distanceToNextManeuver, setDistanceToNextManeuver] = useState(0);
   const [voiceMuted, setVoiceMuted] = useState(false);
+  const [currentHeading, setCurrentHeading] = useState<number | null>(null);
+  const MINI_MAP_ZOOM = 17.5;
+  const MINI_MAP_ZOOM_OUT = 16.0;
+  const [miniMapZoomedOut, setMiniMapZoomedOut] = useState(false);
+  const lastMiniMapUpdateRef = useRef<{ lat: number; lon: number; bearing: number }>({
+    lat: initialLocation.current?.lat ?? 0,
+    lon: initialLocation.current?.lng ?? 0,
+    bearing: 0,
+  });
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const continuousLocationSubscription = useRef<Location.LocationSubscription | null>(null);
+  const miniMapLocationSubscription = useRef<Location.LocationSubscription | null>(null);
+  const miniMapHeadingSubscription = useRef<Location.LocationHeadingSubscription | null>(null);
+  const deviceHeadingRef = useRef<number | null>(null);
   const handleSelectLocationRef = useRef<((result: GeocodingResult) => void) | null>(null);
   const lastRerouteTime = useRef<number>(0);
   const isRerouting = useRef<boolean>(false);
@@ -603,6 +672,121 @@ export default function MapScreen() {
       })
     );
   }, [pois, poiIcons]);
+
+  // Handle mini-map mode toggle
+  useEffect(() => {
+    // Notify WebView of mini-map mode change
+    webViewRef.current?.postMessage(
+      JSON.stringify({
+        type: 'setMiniMapMode',
+        enabled: miniMapMode,
+      })
+    );
+
+    if (miniMapMode && hasLocationPermission) {
+      // Start tracking heading for mini-map rotation
+      (async () => {
+        miniMapLocationSubscription.current = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            distanceInterval: 2,
+            timeInterval: 500,
+          },
+          (newLocation) => {
+            setLocation(newLocation);
+            const bearing = deviceHeadingRef.current ?? newLocation.coords.heading ?? 0;
+            setCurrentHeading(bearing);
+            lastMiniMapUpdateRef.current = {
+              lat: newLocation.coords.latitude,
+              lon: newLocation.coords.longitude,
+              bearing,
+            };
+            // Update map position and rotation
+            webViewRef.current?.postMessage(
+              JSON.stringify({
+                type: 'updateMiniMapLocation',
+                latitude: newLocation.coords.latitude,
+                longitude: newLocation.coords.longitude,
+                bearing,
+              })
+            );
+          }
+        );
+        miniMapHeadingSubscription.current = await Location.watchHeadingAsync((heading) => {
+          const deviceHeading = heading.trueHeading >= 0 ? heading.trueHeading : heading.magHeading;
+          deviceHeadingRef.current = deviceHeading;
+          setCurrentHeading(deviceHeading);
+          lastMiniMapUpdateRef.current = {
+            lat: location?.coords.latitude ?? lastMiniMapUpdateRef.current.lat,
+            lon: location?.coords.longitude ?? lastMiniMapUpdateRef.current.lon,
+            bearing: deviceHeading ?? 0,
+          };
+          webViewRef.current?.postMessage(
+            JSON.stringify({
+              type: 'updateMiniMapLocation',
+              latitude: location?.coords.latitude ?? initialLocation.current?.lat ?? 0,
+              longitude: location?.coords.longitude ?? initialLocation.current?.lng ?? 0,
+              bearing: deviceHeading ?? 0,
+            })
+          );
+        });
+      })();
+    } else {
+      // Stop mini-map location tracking
+      if (miniMapLocationSubscription.current) {
+        miniMapLocationSubscription.current.remove();
+        miniMapLocationSubscription.current = null;
+      }
+      if (miniMapHeadingSubscription.current) {
+        miniMapHeadingSubscription.current.remove();
+        miniMapHeadingSubscription.current = null;
+      }
+      deviceHeadingRef.current = null;
+      setCurrentHeading(null);
+    }
+
+    return () => {
+      if (miniMapLocationSubscription.current) {
+        miniMapLocationSubscription.current.remove();
+        miniMapLocationSubscription.current = null;
+      }
+      if (miniMapHeadingSubscription.current) {
+        miniMapHeadingSubscription.current.remove();
+        miniMapHeadingSubscription.current = null;
+      }
+      deviceHeadingRef.current = null;
+    };
+  }, [miniMapMode, hasLocationPermission]);
+
+  const syncMiniMapState = useCallback(() => {
+    if (!miniMapMode) return;
+    const { lat, lon, bearing } = lastMiniMapUpdateRef.current;
+    webViewRef.current?.postMessage(
+      JSON.stringify({
+        type: 'setMiniMapMode',
+        enabled: true,
+      })
+    );
+    webViewRef.current?.postMessage(
+      JSON.stringify({
+        type: 'setMiniMapZoom',
+        zoom: miniMapZoomedOut ? MINI_MAP_ZOOM_OUT : MINI_MAP_ZOOM,
+        duration: 0,
+      })
+    );
+    webViewRef.current?.postMessage(
+      JSON.stringify({
+        type: 'updateMiniMapLocation',
+        latitude: lat,
+        longitude: lon,
+        bearing,
+      })
+    );
+  }, [miniMapMode, MINI_MAP_ZOOM, MINI_MAP_ZOOM_OUT, miniMapZoomedOut]);
+
+  useEffect(() => {
+    syncMiniMapState();
+  }, [themeName, miniMapMode, miniMapZoomedOut, syncMiniMapState]);
 
   // Handle WebView messages (mapLongPress handled via ref to avoid circular deps)
   const handleWebViewMessage = useCallback((event: WebViewMessageEvent) => {
@@ -1053,6 +1237,13 @@ export default function MapScreen() {
       if (continuousLocationSubscription.current) {
         continuousLocationSubscription.current.remove();
       }
+      if (miniMapLocationSubscription.current) {
+        miniMapLocationSubscription.current.remove();
+      }
+      if (miniMapHeadingSubscription.current) {
+        miniMapHeadingSubscription.current.remove();
+      }
+      deviceHeadingRef.current = null;
     };
   }, []);
 
@@ -1076,111 +1267,141 @@ export default function MapScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {/* WebView with key to force reload on theme change or marker icon load */}
-      <WebView
-        key={`${themeName}-${locationMarkerIcon ? 'icon' : 'loading'}`}
-        ref={webViewRef}
-        source={{
-          html: getMapHTML(
-            initialLocation.current?.lat ?? 37.78825,
-            initialLocation.current?.lng ?? -122.4324,
-            theme.mapStyleJSON,
-            colors,
-            locationMarkerIcon,
-            theme.is3D
-          ),
-        }}
-        style={styles.map}
-        scrollEnabled={false}
-        bounces={false}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        onMessage={handleWebViewMessage}
-        originWhitelist={['*']}
-      />
-
-      {/* Theme toggle (always visible, top-right below nav controls) */}
-      {!isNavigating && <ThemeToggle />}
-
-      {/* Search bar overlay (hidden during active navigation) */}
-      {!isNavigating && (
-        <SearchBar
-          onSelectLocation={handleSelectLocation}
-          onClear={handleClearRoute}
-          userLocation={
-            location ? { lat: location.coords.latitude, lon: location.coords.longitude } : null
-          }
+    <SettingsReveal>
+      <View style={styles.container}>
+        {/* WebView with key to force reload on theme change or marker icon load */}
+        <WebView
+          key={`${themeName}-${locationMarkerIcon ? 'icon' : 'loading'}`}
+          ref={webViewRef}
+          source={{
+            html: getMapHTML(
+              initialLocation.current?.lat ?? 37.78825,
+              initialLocation.current?.lng ?? -122.4324,
+              theme.mapStyleJSON,
+              colors,
+              locationMarkerIcon,
+              theme.is3D
+            ),
+          }}
+          style={styles.map}
+          scrollEnabled={false}
+          bounces={false}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          onMessage={handleWebViewMessage}
+          onLoadEnd={syncMiniMapState}
+          originWhitelist={['*']}
         />
-      )}
 
-      {/* Recenter button (hidden during navigation, when route panel is shown, or when no location) */}
-      {!isNavigating && !route && hasLocationPermission && (
-        <RecenterButton onPress={handleRecenter} />
-      )}
-
-      {/* Mode selector (shown when destination is selected, not during navigation) */}
-      {destination && !route && !isNavigating && (
-        <ModeSelector mode={travelMode} onModeChange={handleModeChange} />
-      )}
-
-      {/* Directions panel (shown when route is calculated, before navigation starts) */}
-      {route && !isNavigating && (
-        <>
-          <ModeSelector mode={travelMode} onModeChange={handleModeChange} />
-          <DirectionsPanel
-            steps={route.steps}
-            totalDistance={route.distance}
-            totalDuration={route.duration}
-            onClose={handleClearRoute}
-            onStartNavigation={handleStartNavigation}
+        {/* Mini-map overlay (when enabled) */}
+        {miniMapMode && (
+          <MiniMapOverlay
+            heading={currentHeading}
+            onPressIn={() => {
+              setMiniMapZoomedOut(true);
+              webViewRef.current?.postMessage(
+                JSON.stringify({
+                  type: 'setMiniMapZoom',
+                  zoom: MINI_MAP_ZOOM_OUT,
+                  duration: 0,
+                })
+              );
+            }}
+            onPressOut={() => {
+              setMiniMapZoomedOut(false);
+              webViewRef.current?.postMessage(
+                JSON.stringify({
+                  type: 'setMiniMapZoom',
+                  zoom: MINI_MAP_ZOOM,
+                  duration: 0,
+                })
+              );
+            }}
           />
-        </>
-      )}
+        )}
 
-      {/* Active navigation view */}
-      {route && isNavigating && route.steps[currentStepIndex] && (
-        <NavigationView
-          currentStep={route.steps[currentStepIndex]}
-          nextStep={route.steps[currentStepIndex + 1] || null}
-          remainingSteps={route.steps.slice(currentStepIndex)}
-          distanceToNextManeuver={distanceToNextManeuver}
-          totalDistance={remainingDistance}
-          totalDuration={remainingDuration}
-          onEndNavigation={handleEndNavigation}
-          voiceMuted={voiceMuted}
-          onToggleVoice={() => setVoiceMuted((m) => !m)}
+        {/* Theme toggle (always visible, top-right below nav controls) */}
+        {!isNavigating && <ThemeToggle />}
+
+        {/* Search bar overlay (hidden during active navigation) */}
+        {!isNavigating && (
+          <SearchBar
+            onSelectLocation={handleSelectLocation}
+            onClear={handleClearRoute}
+            userLocation={
+              location ? { lat: location.coords.latitude, lon: location.coords.longitude } : null
+            }
+          />
+        )}
+
+        {/* Recenter button (hidden during navigation, when route panel is shown, mini-map mode, or when no location) */}
+        {!isNavigating && !route && !miniMapMode && hasLocationPermission && (
+          <RecenterButton onPress={handleRecenter} />
+        )}
+
+        {/* Mode selector (shown when destination is selected, not during navigation) */}
+        {destination && !route && !isNavigating && (
+          <ModeSelector mode={travelMode} onModeChange={handleModeChange} />
+        )}
+
+        {/* Directions panel (shown when route is calculated, before navigation starts) */}
+        {route && !isNavigating && (
+          <>
+            <ModeSelector mode={travelMode} onModeChange={handleModeChange} />
+            <DirectionsPanel
+              steps={route.steps}
+              totalDistance={route.distance}
+              totalDuration={route.duration}
+              onClose={handleClearRoute}
+              onStartNavigation={handleStartNavigation}
+            />
+          </>
+        )}
+
+        {/* Active navigation view */}
+        {route && isNavigating && route.steps[currentStepIndex] && (
+          <NavigationView
+            currentStep={route.steps[currentStepIndex]}
+            nextStep={route.steps[currentStepIndex + 1] || null}
+            remainingSteps={route.steps.slice(currentStepIndex)}
+            distanceToNextManeuver={distanceToNextManeuver}
+            totalDistance={remainingDistance}
+            totalDuration={remainingDuration}
+            onEndNavigation={handleEndNavigation}
+            voiceMuted={voiceMuted}
+            onToggleVoice={() => setVoiceMuted((m) => !m)}
+          />
+        )}
+
+        {/* POI Detail Sheet */}
+        <POISheet
+          poi={selectedPOI}
+          onClose={() => setSelectedPOI(null)}
+          onSetWaypoint={handleSetWaypointFromPOI}
         />
-      )}
 
-      {/* POI Detail Sheet */}
-      <POISheet
-        poi={selectedPOI}
-        onClose={() => setSelectedPOI(null)}
-        onSetWaypoint={handleSetWaypointFromPOI}
-      />
-
-      {/* Loading overlay */}
-      {routeLoading && (
-        <Animated.View
-          entering={FadeIn.duration(150)}
-          exiting={FadeOut.duration(150)}
-          style={[styles.loadingOverlay, { backgroundColor: `${colors.parchment}cc` }]}
-        >
-          <View
-            style={[
-              styles.loadingBox,
-              { backgroundColor: colors.parchment, borderColor: colors.charcoal },
-            ]}
+        {/* Loading overlay */}
+        {routeLoading && (
+          <Animated.View
+            entering={FadeIn.duration(150)}
+            exiting={FadeOut.duration(150)}
+            style={[styles.loadingOverlay, { backgroundColor: `${colors.parchment}cc` }]}
           >
-            <ActivityIndicator size="large" color={colors.charcoal} />
-            <Text style={[styles.loadingRouteText, { color: colors.charcoal }]}>
-              Calculating route...
-            </Text>
-          </View>
-        </Animated.View>
-      )}
-    </View>
+            <View
+              style={[
+                styles.loadingBox,
+                { backgroundColor: colors.parchment, borderColor: colors.charcoal },
+              ]}
+            >
+              <ActivityIndicator size="large" color={colors.charcoal} />
+              <Text style={[styles.loadingRouteText, { color: colors.charcoal }]}>
+                Calculating route...
+              </Text>
+            </View>
+          </Animated.View>
+        )}
+      </View>
+    </SettingsReveal>
   );
 }
 

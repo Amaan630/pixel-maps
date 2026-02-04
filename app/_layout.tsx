@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { OnboardingCarousel } from '../components/onboarding/OnboardingCarousel';
 import { PaywallScreen } from '../components/onboarding/PaywallScreen';
 import { OnboardingProvider, useOnboarding } from '../contexts/OnboardingContext';
+import { SettingsProvider } from '../contexts/SettingsContext';
 import { SubscriptionProvider, useSubscription } from '../contexts/SubscriptionContext';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { themes } from '../themes';
@@ -87,11 +88,13 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <ThemeProvider>
-        <SubscriptionProvider>
-          <OnboardingProvider>
-            <RootLayoutContent />
-          </OnboardingProvider>
-        </SubscriptionProvider>
+        <SettingsProvider>
+          <SubscriptionProvider>
+            <OnboardingProvider>
+              <RootLayoutContent />
+            </OnboardingProvider>
+          </SubscriptionProvider>
+        </SettingsProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
