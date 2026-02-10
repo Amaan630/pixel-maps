@@ -4,19 +4,19 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 const SETTINGS_STORAGE_KEY = 'pixel-maps-settings';
 
 interface Settings {
-  miniMapMode: boolean;
+  activeMode: 'minimap' | 'discovery' | null;
 }
 
 interface SettingsContextType {
-  miniMapMode: boolean;
-  setMiniMapMode: (enabled: boolean) => void;
+  activeMode: 'minimap' | 'discovery' | null;
+  setActiveMode: (mode: 'minimap' | 'discovery' | null) => void;
   settingsVisible: boolean;
   setSettingsVisible: (visible: boolean) => void;
   isLoading: boolean;
 }
 
 const defaultSettings: Settings = {
-  miniMapMode: false,
+  activeMode: null,
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -33,7 +33,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         const saved = await AsyncStorage.getItem(SETTINGS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          setSettings({ ...defaultSettings, ...parsed });
+          const migrated =
+            parsed && typeof parsed === 'object' && 'miniMapMode' in parsed
+              ? { activeMode: parsed.miniMapMode ? 'minimap' : null }
+              : parsed;
+          setSettings({ ...defaultSettings, ...migrated });
         }
       } catch (e) {
         console.error('Failed to load settings:', e);
@@ -52,15 +56,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const setMiniMapMode = (enabled: boolean) => {
-    saveSettings({ ...settings, miniMapMode: enabled });
+  const setActiveMode = (mode: 'minimap' | 'discovery' | null) => {
+    saveSettings({ ...settings, activeMode: mode });
   };
 
   return (
     <SettingsContext.Provider
       value={{
-        miniMapMode: settings.miniMapMode,
-        setMiniMapMode,
+        activeMode: settings.activeMode,
+        setActiveMode,
         settingsVisible,
         setSettingsVisible,
         isLoading,

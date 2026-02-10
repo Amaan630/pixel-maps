@@ -27,6 +27,8 @@ Read these files in order:
 
 If you can explain those, you can change minimap behavior safely.
 
+Discovery mode follows the same layout under `modes/discovery/` with tile-based fog logic.
+
 ## Lifecycle
 
 Every mode has 3 core steps:

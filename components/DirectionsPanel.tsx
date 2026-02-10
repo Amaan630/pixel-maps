@@ -6,9 +6,9 @@ import BottomSheet, {
 import * as Haptics from 'expo-haptics';
 import { XIcon } from 'lucide-react-native';
 import { useCallback, useMemo, useRef } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, useUiFont } from '../contexts/ThemeContext';
 import { RouteStep } from '../services/routing';
 
 interface Props {
@@ -45,7 +45,8 @@ export function DirectionsPanel({
   onStartNavigation,
 }: Props) {
   const { theme } = useTheme();
-  const { colors, fonts } = theme;
+  const { colors } = theme;
+  const uiFont = useUiFont();
   const insets = useSafeAreaInsets();
   const bottomSheetRef = useRef<BottomSheet>(null);
 
@@ -88,14 +89,19 @@ export function DirectionsPanel({
             style={[styles.startButton, { backgroundColor: colors.route, borderColor: colors.charcoal }]}
             onPress={handleStartNavigation}
           >
-            <Text style={[styles.startButtonText, { fontFamily: fonts.display }]}>
-              START NAVIGATION
+            <Text
+              style={[
+                styles.startButtonText,
+                { fontFamily: uiFont, color: colors.textOnTextBackground },
+              ]}
+            >
+              Start Navigation
             </Text>
           </TouchableOpacity>
         </View>
       </BottomSheetFooter>
     ),
-    [colors, fonts, handleStartNavigation, insets.bottom]
+    [colors, handleStartNavigation, insets.bottom]
   );
 
   return (
@@ -113,10 +119,10 @@ export function DirectionsPanel({
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.building }]}>
         <View style={styles.summaryContainer}>
-          <Text style={[styles.duration, { color: colors.charcoal, fontFamily: fonts.display }]}>
+          <Text style={[styles.duration, { color: colors.charcoal, fontFamily: uiFont }]}>
             {formatDuration(totalDuration)}
           </Text>
-          <Text style={[styles.distance, { color: colors.darkerBrown, fontFamily: fonts.display }]}>
+          <Text style={[styles.distance, { color: colors.darkerBrown, fontFamily: uiFont }]}>
             {formatDistance(totalDistance)}
           </Text>
         </View>
@@ -143,12 +149,12 @@ export function DirectionsPanel({
               <Text
                 style={[
                   styles.stepInstruction,
-                  { color: colors.charcoal, fontFamily: fonts.display },
+                  { color: colors.charcoal, fontFamily: uiFont },
                 ]}
               >
                 {step.instruction}
               </Text>
-              <Text style={[styles.stepMeta, { color: colors.mutedBrown }]}>
+              <Text style={[styles.stepMeta, { color: colors.mutedBrown, fontFamily: uiFont }]}>
                 {formatDistance(step.distance)} · {formatDuration(step.duration)}
               </Text>
             </View>
@@ -164,7 +170,7 @@ export function DirectionsPanel({
             <Text
               style={[
                 styles.stepInstruction,
-                { color: colors.charcoal, fontFamily: fonts.display },
+                { color: colors.charcoal, fontFamily: uiFont },
               ]}
             >
               Arrive at your waypoint
@@ -206,10 +212,12 @@ const styles = StyleSheet.create({
   },
   duration: {
     fontSize: 24,
+    fontWeight: '700',
   },
   distance: {
     fontSize: 20,
     marginTop: 2,
+    fontWeight: '600',
   },
   closeButton: {
     width: 40,
@@ -249,10 +257,12 @@ const styles = StyleSheet.create({
   stepInstruction: {
     fontSize: 15,
     lineHeight: 20,
+    fontWeight: '600',
   },
   stepMeta: {
     fontSize: 13,
     marginTop: 4,
+    fontWeight: '500',
   },
   buttonContainer: {
     paddingHorizontal: 20,
@@ -268,6 +278,7 @@ const styles = StyleSheet.create({
   startButtonText: {
     color: '#fff',
     fontSize: 18,
-    letterSpacing: 1,
+    letterSpacing: 0.6,
+    fontWeight: '700',
   },
 });

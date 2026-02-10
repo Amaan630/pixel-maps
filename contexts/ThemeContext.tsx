@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { Theme, ThemeName, defaultTheme, themes } from '../themes';
 
 const THEME_STORAGE_KEY = 'pixel-maps-theme';
@@ -66,4 +67,19 @@ export function useColors() {
 
 export function useFonts() {
   return useTheme().theme.fonts;
+}
+
+const DEFAULT_SYSTEM_FONT = Platform.select({
+  ios: 'System',
+  android: 'sans-serif',
+  default: undefined,
+});
+
+// Called by UI components so certain themes use a simpler font for readability.
+export function useUiFont() {
+  const { theme, themeName } = useTheme();
+  if (themeName === 'los-angeles' || themeName === 'san-andreas' || themeName === 'cyberpunk') {
+    return DEFAULT_SYSTEM_FONT || theme.fonts.display;
+  }
+  return theme.fonts.display;
 }

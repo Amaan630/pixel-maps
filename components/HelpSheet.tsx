@@ -3,7 +3,7 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { FileText, Mail, Shield } from 'lucide-react-native';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, useUiFont } from '../contexts/ThemeContext';
 import { UndraggableSheet } from './UndraggableSheet';
 
 const PRIVACY_URL = 'https://syntak.co/pixel-maps/privacy-policy';
@@ -17,7 +17,8 @@ interface Props {
 
 export function HelpSheet({ visible, onClose }: Props) {
   const { theme } = useTheme();
-  const { colors, fonts } = theme;
+  const { colors } = theme;
+  const uiFont = useUiFont();
 
   const handlePrivacyPolicy = async () => {
     Haptics.selectionAsync();
@@ -36,7 +37,7 @@ export function HelpSheet({ visible, onClose }: Props) {
 
   return (
     <UndraggableSheet visible={visible} onClose={onClose}>
-      <Text style={[styles.title, { color: colors.charcoal, fontFamily: fonts.display }]}>
+      <Text style={[styles.title, { color: colors.charcoal, fontFamily: uiFont }]}>
         Help & Info
       </Text>
 
@@ -46,7 +47,9 @@ export function HelpSheet({ visible, onClose }: Props) {
           onPress={handlePrivacyPolicy}
         >
           <Shield size={20} color={colors.mutedBrown} />
-          <Text style={[styles.linkText, { color: colors.charcoal }]}>Privacy Policy</Text>
+          <Text style={[styles.linkText, { color: colors.charcoal, fontFamily: uiFont }]}>
+            Privacy Policy
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -54,12 +57,16 @@ export function HelpSheet({ visible, onClose }: Props) {
           onPress={handleTerms}
         >
           <FileText size={20} color={colors.mutedBrown} />
-          <Text style={[styles.linkText, { color: colors.charcoal }]}>Terms & Conditions</Text>
+          <Text style={[styles.linkText, { color: colors.charcoal, fontFamily: uiFont }]}>
+            Terms & Conditions
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.linkRow} onPress={handleContactSupport}>
           <Mail size={20} color={colors.mutedBrown} />
-          <Text style={[styles.linkText, { color: colors.charcoal }]}>Contact Support</Text>
+          <Text style={[styles.linkText, { color: colors.charcoal, fontFamily: uiFont }]}>
+            Contact Support
+          </Text>
         </TouchableOpacity>
       </View>
     </UndraggableSheet>
@@ -70,6 +77,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     marginBottom: 20,
+    fontWeight: '700',
   },
   linksContainer: {
     gap: 0,
@@ -83,5 +91,6 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 17,
+    fontWeight: '600',
   },
 });

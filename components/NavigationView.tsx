@@ -9,7 +9,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, useUiFont } from '../contexts/ThemeContext';
 import { RouteStep } from '../services/routing';
 
 interface Props {
@@ -54,7 +54,8 @@ export function NavigationView({
   onToggleVoice,
 }: Props) {
   const { theme } = useTheme();
-  const { colors, fonts } = theme;
+  const { colors } = theme;
+  const uiFont = useUiFont();
   const insets = useSafeAreaInsets();
   const bottomSheetRef = useRef<BottomSheet>(null);
 
@@ -91,15 +92,15 @@ export function NavigationView({
             onPress={handleEndNavigation}
           >
             <Text
-              style={[styles.endButtonText, { color: colors.parchment, fontFamily: fonts.display }]}
+              style={[styles.endButtonText, { color: colors.textOnTextBackground, fontFamily: uiFont }]}
             >
-              END NAVIGATION
+              End Navigation
             </Text>
           </TouchableOpacity>
         </View>
       </BottomSheetFooter>
     ),
-    [colors, fonts, handleEndNavigation, insets.bottom]
+    [colors, handleEndNavigation, insets.bottom]
   );
 
   return (
@@ -118,7 +119,7 @@ export function NavigationView({
           <Text
             style={[
               styles.currentInstructionText,
-              { color: colors.parchment, fontFamily: fonts.display },
+              { color: colors.textOnTextBackground, fontFamily: uiFont },
             ]}
             numberOfLines={2}
           >
@@ -127,7 +128,7 @@ export function NavigationView({
           <Text
             style={[
               styles.distanceToManeuver,
-              { color: colors.route, fontFamily: fonts.display },
+              { color: colors.route, fontFamily: uiFont },
             ]}
           >
             {formatDistance(distanceToNextManeuver)}
@@ -160,20 +161,24 @@ export function NavigationView({
         <View style={styles.tripSummary}>
           <View style={styles.summaryItem}>
             <Text
-              style={[styles.summaryValue, { color: colors.charcoal, fontFamily: fonts.display }]}
+              style={[styles.summaryValue, { color: colors.charcoal, fontFamily: uiFont }]}
             >
               {formatDuration(totalDuration)}
             </Text>
-            <Text style={[styles.summaryLabel, { color: colors.darkerBrown }]}>remaining</Text>
+            <Text style={[styles.summaryLabel, { color: colors.darkerBrown, fontFamily: uiFont }]}>
+              remaining
+            </Text>
           </View>
           <View style={[styles.summaryDivider, { backgroundColor: colors.building }]} />
           <View style={styles.summaryItem}>
             <Text
-              style={[styles.summaryValue, { color: colors.charcoal, fontFamily: fonts.display }]}
+              style={[styles.summaryValue, { color: colors.charcoal, fontFamily: uiFont }]}
             >
               {formatDistance(totalDistance)}
             </Text>
-            <Text style={[styles.summaryLabel, { color: colors.darkerBrown }]}>to go</Text>
+            <Text style={[styles.summaryLabel, { color: colors.darkerBrown, fontFamily: uiFont }]}>
+              to go
+            </Text>
           </View>
         </View>
 
@@ -186,11 +191,13 @@ export function NavigationView({
           {/* Next instruction (highlighted) */}
           {nextStep && (
             <View style={[styles.nextInstruction, { backgroundColor: colors.building }]}>
-              <Text style={[styles.nextLabel, { color: colors.darkerBrown }]}>NEXT</Text>
+              <Text style={[styles.nextLabel, { color: colors.darkerBrown, fontFamily: uiFont }]}>
+                NEXT
+              </Text>
               <Text
                 style={[
                   styles.nextInstructionText,
-                  { color: colors.charcoal, fontFamily: fonts.display },
+                  { color: colors.charcoal, fontFamily: uiFont },
                 ]}
                 numberOfLines={2}
               >
@@ -211,12 +218,12 @@ export function NavigationView({
                 <Text
                   style={[
                     styles.stepInstruction,
-                    { color: colors.charcoal, fontFamily: fonts.display },
+                    { color: colors.charcoal, fontFamily: uiFont },
                   ]}
                 >
                   {step.instruction}
                 </Text>
-                <Text style={[styles.stepMeta, { color: colors.mutedBrown }]}>
+                <Text style={[styles.stepMeta, { color: colors.mutedBrown, fontFamily: uiFont }]}>
                   {formatDistance(step.distance)}
                 </Text>
               </View>
@@ -232,7 +239,7 @@ export function NavigationView({
               <Text
                 style={[
                   styles.stepInstruction,
-                  { color: colors.charcoal, fontFamily: fonts.display },
+                  { color: colors.charcoal, fontFamily: uiFont },
                 ]}
               >
                 Arrive at waypoint
@@ -270,10 +277,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 22,
     marginRight: 16,
+    fontWeight: '600',
   },
   distanceToManeuver: {
     fontSize: 28,
     marginRight: 12,
+    fontWeight: '700',
   },
   muteButton: {
     width: 36,
@@ -311,10 +320,13 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     fontSize: 24,
+    fontWeight: '700',
   },
   summaryLabel: {
     fontSize: 12,
     marginTop: 2,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   summaryDivider: {
     width: 2,
@@ -335,10 +347,12 @@ const styles = StyleSheet.create({
   nextLabel: {
     fontSize: 10,
     fontWeight: '600',
+    letterSpacing: 0.6,
     marginBottom: 4,
   },
   nextInstructionText: {
     fontSize: 14,
+    fontWeight: '600',
   },
   step: {
     flexDirection: 'row',
@@ -364,10 +378,12 @@ const styles = StyleSheet.create({
   stepInstruction: {
     fontSize: 14,
     lineHeight: 18,
+    fontWeight: '500',
   },
   stepMeta: {
     fontSize: 12,
     marginTop: 2,
+    fontWeight: '500',
   },
   buttonContainer: {
     paddingHorizontal: 20,
@@ -382,6 +398,7 @@ const styles = StyleSheet.create({
   },
   endButtonText: {
     fontSize: 20,
-    letterSpacing: 1,
+    letterSpacing: 0.6,
+    fontWeight: '700',
   },
 });

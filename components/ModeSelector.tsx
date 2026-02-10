@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, useUiFont } from '../contexts/ThemeContext';
 import { TravelMode } from '../services/routing';
 
 interface Props {
@@ -11,7 +11,8 @@ interface Props {
 
 export function ModeSelector({ mode, onModeChange }: Props) {
   const { theme } = useTheme();
-  const { colors, fonts } = theme;
+  const { colors } = theme;
+  const uiFont = useUiFont();
 
   const handleModeChange = (newMode: TravelMode) => {
     if (newMode !== mode) {
@@ -38,7 +39,7 @@ export function ModeSelector({ mode, onModeChange }: Props) {
         <Text
           style={[
             styles.text,
-            { color: colors.charcoal, fontFamily: fonts.display },
+            { color: colors.charcoal, fontFamily: uiFont },
             mode === 'walking' && { color: colors.parchment },
           ]}
         >
@@ -57,7 +58,7 @@ export function ModeSelector({ mode, onModeChange }: Props) {
         <Text
           style={[
             styles.text,
-            { color: colors.charcoal, fontFamily: fonts.display },
+            { color: colors.charcoal, fontFamily: uiFont },
             mode === 'driving' && { color: colors.parchment },
           ]}
         >
@@ -85,5 +86,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.4,
   },
 });

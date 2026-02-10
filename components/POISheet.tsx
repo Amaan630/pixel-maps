@@ -3,7 +3,7 @@ import { MapPin, Navigation } from 'lucide-react-native';
 import { useCallback } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { POICategory } from '../config/poiIcons';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, useUiFont } from '../contexts/ThemeContext';
 import { usePOIIcons } from '../hooks/usePOIIcons';
 import { UndraggableSheet } from './UndraggableSheet';
 
@@ -30,7 +30,8 @@ function formatCategory(category: POICategory): string {
 
 export function POISheet({ poi, onClose, onSetWaypoint }: Props) {
   const { theme, themeName } = useTheme();
-  const { colors, fonts } = theme;
+  const { colors } = theme;
+  const uiFont = useUiFont();
   const { icons } = usePOIIcons(themeName);
 
   const handleSetWaypoint = useCallback(() => {
@@ -59,12 +60,14 @@ export function POISheet({ poi, onClose, onSetWaypoint }: Props) {
         </View>
         <View style={styles.textContainer}>
           <Text
-            style={[styles.poiName, { color: colors.charcoal, fontFamily: fonts.display }]}
+            style={[styles.poiName, { color: colors.charcoal, fontFamily: uiFont }]}
             numberOfLines={2}
           >
             {displayName}
           </Text>
-          <Text style={[styles.poiCategory, { color: colors.mutedBrown }]}>{displayCategory}</Text>
+          <Text style={[styles.poiCategory, { color: colors.mutedBrown, fontFamily: uiFont }]}>
+            {displayCategory}
+          </Text>
         </View>
       </View>
 
@@ -74,7 +77,12 @@ export function POISheet({ poi, onClose, onSetWaypoint }: Props) {
         onPress={handleSetWaypoint}
       >
         <Navigation size={20} color={colors.parchment} />
-        <Text style={[styles.waypointButtonText, { color: colors.parchment, fontFamily: fonts.display }]}>
+        <Text
+          style={[
+            styles.waypointButtonText,
+            { color: colors.textOnTextBackground, fontFamily: uiFont },
+          ]}
+        >
           Set Waypoint
         </Text>
       </TouchableOpacity>
@@ -107,9 +115,11 @@ const styles = StyleSheet.create({
   poiName: {
     fontSize: 20,
     marginBottom: 4,
+    fontWeight: '600',
   },
   poiCategory: {
     fontSize: 14,
+    fontWeight: '500',
   },
   waypointButton: {
     flexDirection: 'row',
@@ -121,5 +131,6 @@ const styles = StyleSheet.create({
   },
   waypointButtonText: {
     fontSize: 18,
+    fontWeight: '700',
   },
 });

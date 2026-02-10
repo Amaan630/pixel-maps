@@ -4,4 +4,10 @@ export const MAP_MESSAGE = {
     setZoom: 'setMiniMapZoom',
     updateLocation: 'updateMiniMapLocation',
   },
+  discovery: {
+    setMode: 'setDiscoveryMode',
+    loadTiles: 'setDiscoveryTiles',
+    reveal: 'revealDiscoveryPoint',
+    clear: 'clearDiscoveryFog',
+  },
 } as const;

@@ -4,7 +4,6 @@ import { ActivityIndicator, Alert, AppState, Linking, StyleSheet, Text, View } f
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { DirectionsPanel } from '../components/DirectionsPanel';
-import { MiniMapOverlay } from '../modes/minimap/overlay';
 import { ModeSelector } from '../components/ModeSelector';
 import { NavigationView } from '../components/NavigationView';
 import { POISheet } from '../components/POISheet';
@@ -14,13 +13,16 @@ import { SettingsReveal } from '../components/SettingsReveal';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useSettings } from '../contexts/SettingsContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLiveActivity } from '../hooks/useLiveActivity';
 import { useLocationMarkerIcon } from '../hooks/useLocationMarkerIcon';
 import { usePOIIcons } from '../hooks/usePOIIcons';
-import { useLiveActivity } from '../hooks/useLiveActivity';
 import { useVoiceNavigation } from '../hooks/useVoiceNavigation';
-import { createMiniMapModeService } from '../modes/minimap';
-import { MAP_MESSAGE } from '../modes/messages';
+import { createDiscoveryModeService } from '../modes/discovery';
+import { DISCOVERY_CONFIG } from '../modes/discovery/config';
 import { createModeManager } from '../modes/manager';
+import { MAP_MESSAGE } from '../modes/messages';
+import { createMiniMapModeService } from '../modes/minimap';
+import { MiniMapOverlay } from '../modes/minimap/overlay';
 import { GeocodingResult } from '../services/geocoding';
 import { fetchPOIs, MapBounds, POI } from '../services/poi';
 import { getRoute, RouteResponse, TravelMode } from '../services/routing';
@@ -134,6 +136,17 @@ function calculateBearing(
   return (bearing + 360) % 360; // Normalize to 0-360
 }
 
+// Called when generating WebView HTML so the user sees theme-appropriate discovery fog.
+function getDiscoveryFogColor(themeName: string, defaultColor: string) {
+  if (themeName === 'los-angeles') {
+    return 'rgba(0,0,0,1)';
+  }
+  if (themeName === 'san-andreas') {
+    return 'rgba(0,0,0,0.9)';
+  }
+  return defaultColor;
+}
+
 // Generate map HTML with theme colors
 function getMapHTML(
   latitude: number,
@@ -141,7 +154,9 @@ function getMapHTML(
   mapStyleJSON: string,
   colors: { userLocation: string; route: string; charcoal: string },
   locationMarkerIcon: string | null,
-  is3D: boolean
+  is3D: boolean,
+  discoveryFogColor: string,
+  themeName: string
 ) {
   return `
 <!DOCTYPE html>
@@ -191,6 +206,9 @@ function getMapHTML(
     const is3DTheme = ${is3D};
     const defaultPitch = is3DTheme ? 45 : 0;
     const navigationPitch = is3DTheme ? 60 : 0;
+    const discoveryFogColor = ${JSON.stringify(discoveryFogColor)};
+    const themeName = ${JSON.stringify(themeName)};
+    const miniMapPitch = themeName === 'los-angeles' ? 45 : 0;
 
     const map = new maplibregl.Map({
       container: 'map',
@@ -281,6 +299,10 @@ function getMapHTML(
 
     map.on('moveend', sendBoundsUpdate);
     map.on('zoomend', sendBoundsUpdate);
+    map.on('move', drawDiscoveryOverlay);
+    map.on('zoom', drawDiscoveryOverlay);
+    map.on('rotate', drawDiscoveryOverlay);
+    map.on('resize', drawDiscoveryOverlay);
 
     // Long-press to set destination
     let longPressTimer = null;
@@ -338,11 +360,172 @@ function getMapHTML(
     // Send initial bounds after map loads
     map.on('load', () => {
       setTimeout(sendBoundsUpdate, 100);
+      drawDiscoveryOverlay();
     });
 
     // Navigation mode state
     let isNavigationMode = false;
     let isMiniMapMode = false;
+
+    // Discovery mode state
+    const discovery = {
+      enabled: false,
+      tileSize: ${DISCOVERY_CONFIG.tileSizePx},
+      tileZoom: ${DISCOVERY_CONFIG.tileZoom},
+      maxTiles: ${DISCOVERY_CONFIG.maxTilesInMemory},
+      tiles: new Map(),
+      canvas: null,
+      ctx: null,
+    };
+
+    // Called when discovery mode activates so the user sees fog immediately.
+    function ensureDiscoveryCanvas() {
+      if (discovery.canvas) return;
+      const canvas = document.createElement('canvas');
+      canvas.style.position = 'absolute';
+      canvas.style.top = '0';
+      canvas.style.left = '0';
+      canvas.style.pointerEvents = 'none';
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      document.body.appendChild(canvas);
+      discovery.canvas = canvas;
+      discovery.ctx = canvas.getContext('2d');
+    }
+
+    // Called when the user exits discovery mode so fog is removed.
+    function clearDiscoveryOverlay() {
+      if (!discovery.canvas) return;
+      discovery.canvas.remove();
+      discovery.canvas = null;
+      discovery.ctx = null;
+    }
+
+    // Called when the fog tiles are reset so the user starts fresh.
+    function clearDiscoveryTiles() {
+      discovery.tiles.clear();
+    }
+
+    // Called when new tile data is loaded so the user sees prior discoveries.
+    function loadDiscoveryTiles(tiles) {
+      for (const tile of tiles) {
+        const tileCanvas = getDiscoveryTileCanvas(tile.id);
+        for (const point of tile.points || []) {
+          applyDiscoveryReveal(tile.id, point);
+        }
+      }
+    }
+
+    // Called when a new tile is needed so the user can reveal new areas.
+    function getDiscoveryTileCanvas(tileId) {
+      if (discovery.tiles.has(tileId)) return discovery.tiles.get(tileId);
+      const canvas = document.createElement('canvas');
+      canvas.width = discovery.tileSize;
+      canvas.height = discovery.tileSize;
+      const ctx = canvas.getContext('2d');
+      const tile = { canvas, ctx };
+      discovery.tiles.set(tileId, tile);
+      if (discovery.tiles.size > discovery.maxTiles) {
+        const firstKey = discovery.tiles.keys().next().value;
+        discovery.tiles.delete(firstKey);
+      }
+      return tile;
+    }
+
+    // Called when revealing a point so the user sees fog fade around their path.
+    function applyDiscoveryReveal(tileId, point) {
+      const tile = getDiscoveryTileCanvas(tileId);
+      const ctx = tile.ctx;
+      const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, point.r);
+      gradient.addColorStop(0, 'rgba(255,255,255,1)');
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, point.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Called on map moves so the user sees fog aligned with the current view.
+    function drawDiscoveryOverlay() {
+      if (!discovery.enabled || !discovery.ctx || !discovery.canvas) return;
+      discovery.canvas.width = window.innerWidth;
+      discovery.canvas.height = window.innerHeight;
+      const ctx = discovery.ctx;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, discovery.canvas.width, discovery.canvas.height);
+      ctx.fillStyle = discoveryFogColor;
+      ctx.fillRect(0, 0, discovery.canvas.width, discovery.canvas.height);
+
+      ctx.globalCompositeOperation = 'destination-out';
+      const bounds = map.getBounds();
+      const zoom = discovery.tileZoom;
+      const north = bounds.getNorth();
+      const south = bounds.getSouth();
+      const east = bounds.getEast();
+      const west = bounds.getWest();
+
+      const tileRange = getDiscoveryTileRange(north, south, east, west, zoom);
+      for (let x = tileRange.minX; x <= tileRange.maxX; x += 1) {
+        for (let y = tileRange.minY; y <= tileRange.maxY; y += 1) {
+          const tileId = zoom + '/' + x + '/' + y;
+          const tile = discovery.tiles.get(tileId);
+          if (!tile) continue;
+          const bounds = tileToLngLatBounds(x, y, zoom);
+          const nw = map.project([bounds.west, bounds.north]);
+          const ne = map.project([bounds.east, bounds.north]);
+          const sw = map.project([bounds.west, bounds.south]);
+          const size = discovery.tileSize;
+          ctx.save();
+          ctx.setTransform(
+            (ne.x - nw.x) / size,
+            (ne.y - nw.y) / size,
+            (sw.x - nw.x) / size,
+            (sw.y - nw.y) / size,
+            nw.x,
+            nw.y
+          );
+          ctx.drawImage(tile.canvas, 0, 0, size, size);
+          ctx.restore();
+        }
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // Called when computing visible tiles so the user only pays cost for nearby fog tiles.
+    function getDiscoveryTileRange(north, south, east, west, zoom) {
+      const nw = lngLatToTileXY(west, north, zoom);
+      const se = lngLatToTileXY(east, south, zoom);
+      return {
+        minX: Math.floor(nw.x),
+        minY: Math.floor(nw.y),
+        maxX: Math.floor(se.x),
+        maxY: Math.floor(se.y),
+      };
+    }
+
+    // Called when projecting coordinates so tiles align with the map.
+    function lngLatToTileXY(lon, lat, zoom) {
+      const n = Math.pow(2, zoom);
+      const x = (lon + 180) / 360 * n;
+      const latRad = lat * Math.PI / 180;
+      const y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+      return { x, y };
+    }
+
+    // Called when drawing tiles so the user sees fog in the correct place.
+    function tileToLngLatBounds(x, y, zoom) {
+      const n = Math.pow(2, zoom);
+      const west = x / n * 360 - 180;
+      const east = (x + 1) / n * 360 - 180;
+      const north = radToDeg(Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))));
+      const south = radToDeg(Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 1) / n))));
+      return { west, east, north, south };
+    }
+
+    // Called when converting projections so the user sees accurate tile placement.
+    function radToDeg(rad) {
+      return rad * 180 / Math.PI;
+    }
 
     // Handle messages from React Native
     window.addEventListener('message', (event) => {
@@ -513,7 +696,7 @@ function getMapHTML(
             map.easeTo({
               center: currentUserLocation,
               zoom: 17.5,
-              pitch: 0,
+              pitch: miniMapPitch,
               duration: 300
             });
           } else {
@@ -540,6 +723,7 @@ function getMapHTML(
           map.easeTo({
             center: currentUserLocation,
             bearing: data.bearing || 0,
+            pitch: miniMapPitch,
             duration: 0
           });
         }
@@ -551,6 +735,39 @@ function getMapHTML(
               duration: 0
             });
           }
+        }
+
+        if (data.type === '${MAP_MESSAGE.discovery.setMode}') {
+          discovery.enabled = data.enabled;
+          if (data.enabled) {
+            ensureDiscoveryCanvas();
+            drawDiscoveryOverlay();
+          } else {
+            clearDiscoveryOverlay();
+          }
+        }
+
+        if (data.type === '${MAP_MESSAGE.discovery.clear}') {
+          clearDiscoveryTiles();
+          drawDiscoveryOverlay();
+        }
+
+        if (data.type === '${MAP_MESSAGE.discovery.loadTiles}') {
+          if (!discovery.enabled) {
+            discovery.enabled = true;
+            ensureDiscoveryCanvas();
+          }
+          loadDiscoveryTiles(data.tiles || []);
+          drawDiscoveryOverlay();
+        }
+
+        if (data.type === '${MAP_MESSAGE.discovery.reveal}') {
+          if (!discovery.enabled) {
+            discovery.enabled = true;
+            ensureDiscoveryCanvas();
+          }
+          applyDiscoveryReveal(data.tileId, data.point);
+          drawDiscoveryOverlay();
         }
 
       } catch (e) {
@@ -566,7 +783,8 @@ function getMapHTML(
 export default function MapScreen() {
   const { theme, themeName } = useTheme();
   const { colors } = theme;
-  const { miniMapMode } = useSettings();
+  const { activeMode } = useSettings();
+  const discoveryFogColor = getDiscoveryFogColor(themeName, colors.parchment);
 
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
@@ -594,9 +812,11 @@ export default function MapScreen() {
   const lastRerouteTime = useRef<number>(0);
   const isRerouting = useRef<boolean>(false);
   const miniMapModeServiceRef = useRef(createMiniMapModeService());
+  const discoveryModeServiceRef = useRef(createDiscoveryModeService());
   const modeManagerRef = useRef(
     createModeManager({
       minimap: miniMapModeServiceRef.current,
+      discovery: discoveryModeServiceRef.current,
     })
   );
   const headingRef = useRef<number | null>(null);
@@ -708,13 +928,13 @@ export default function MapScreen() {
 
   // Called when the user toggles modes so only one mode is active at a time.
   useEffect(() => {
-    modeManagerRef.current.setActiveMode(miniMapMode ? 'minimap' : null, modeContext);
+    modeManagerRef.current.setActiveMode(activeMode, modeContext);
     return () => {
-      if (miniMapMode) {
+      if (activeMode) {
         modeManagerRef.current.setActiveMode(null, modeContext);
       }
     };
-  }, [miniMapMode, modeContext]);
+  }, [activeMode, modeContext]);
 
   // Called when permissions change so the active mode can resume tracking for the user.
   useEffect(() => {
@@ -1211,7 +1431,9 @@ export default function MapScreen() {
               theme.mapStyleJSON,
               colors,
               locationMarkerIcon,
-              theme.is3D
+              theme.is3D,
+              discoveryFogColor,
+              themeName
             ),
           }}
           style={styles.map}
@@ -1228,7 +1450,7 @@ export default function MapScreen() {
         />
 
         {/* Mini-map overlay (when enabled, so the user can zoom out by holding the mask) */}
-        {miniMapMode && (
+        {activeMode === 'minimap' && (
           <MiniMapOverlay {...miniMapModeServiceRef.current.getOverlayProps(modeContext)} />
         )}
 
@@ -1247,7 +1469,7 @@ export default function MapScreen() {
         )}
 
         {/* Recenter button (hidden during navigation, when route panel is shown, mini-map mode, or when no location) */}
-        {!isNavigating && !route && !miniMapMode && hasLocationPermission && (
+        {!isNavigating && !route && activeMode !== 'minimap' && hasLocationPermission && (
           <RecenterButton onPress={handleRecenter} />
         )}
 
