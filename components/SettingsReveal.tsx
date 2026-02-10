@@ -26,10 +26,10 @@ const PANEL_BG = "#f4f1ea";
 const PANEL_TEXT = "#1a1a1a";
 const PANEL_BORDER = "#c62828";
 const MINIMAP_IMAGES = {
-    western: require("../assets/images/modes/minimap/western-minimap.jpeg"),
-    "san-andreas": require("../assets/images/modes/minimap/san-andreas-minimap.jpeg"),
-    "los-angeles": require("../assets/images/modes/minimap/los-santos-minimap.jpeg"),
-    cyberpunk: require("../assets/images/modes/minimap/cyberpunk-minimap.jpeg"),
+    western: require("../assets/images/modes/minimap/western-minimap-transparent.png"),
+    "san-andreas": require("../assets/images/modes/minimap/san-andreas-minimap-transparent.png"),
+    "los-angeles": require("../assets/images/modes/minimap/los-santos-minimap-transparent.png"),
+    cyberpunk: require("../assets/images/modes/minimap/cyberpunk-minimap-transparent.png"),
 } as const;
 
 const DISCOVERY_IMAGES = {
@@ -196,7 +196,6 @@ const styles = StyleSheet.create({
     previewImageWrapper: {
         width: "75%",
         aspectRatio: 1,
-        borderRadius: 20,
         overflow: "hidden",
         marginBottom: 10,
     },

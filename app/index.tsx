@@ -6,6 +6,7 @@ import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { DirectionsPanel } from '../components/DirectionsPanel';
 import { ModeSelector } from '../components/ModeSelector';
 import { NavigationView } from '../components/NavigationView';
+import { ChangelogSheet } from '../components/ChangelogSheet';
 import { POISheet } from '../components/POISheet';
 import { RecenterButton } from '../components/RecenterButton';
 import { SearchBar } from '../components/SearchBar';
@@ -208,7 +209,7 @@ function getMapHTML(
     const navigationPitch = is3DTheme ? 60 : 0;
     const discoveryFogColor = ${JSON.stringify(discoveryFogColor)};
     const themeName = ${JSON.stringify(themeName)};
-    const miniMapPitch = themeName === 'los-angeles' ? 45 : 0;
+    const miniMapPitch = (themeName === 'los-angeles' || themeName === 'cyberpunk') ? 45 : 0;
 
     const map = new maplibregl.Map({
       container: 'map',
@@ -1513,6 +1514,9 @@ export default function MapScreen() {
           onClose={() => setSelectedPOI(null)}
           onSetWaypoint={handleSetWaypointFromPOI}
         />
+
+        {/* Changelog Sheet */}
+        <ChangelogSheet />
 
         {/* Loading overlay */}
         {routeLoading && (
