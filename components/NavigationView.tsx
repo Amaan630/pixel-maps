@@ -92,7 +92,7 @@ export function NavigationView({
             onPress={handleEndNavigation}
           >
             <Text
-              style={[styles.endButtonText, { color: colors.textOnTextBackground, fontFamily: uiFont }]}
+              style={[styles.endButtonText, { color: colors.parchment, fontFamily: uiFont }]}
             >
               End Navigation
             </Text>
@@ -119,7 +119,7 @@ export function NavigationView({
           <Text
             style={[
               styles.currentInstructionText,
-              { color: colors.textOnTextBackground, fontFamily: uiFont },
+              { color: colors.parchment, fontFamily: uiFont },
             ]}
             numberOfLines={2}
           >
